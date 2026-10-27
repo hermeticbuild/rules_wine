@@ -31,7 +31,7 @@ load("@rules_wine//wine:toolchain.bzl", "windows_runner_toolchain")
 
 windows_runner_toolchain(
     name = "company_impl",
-    arch = "x86_64",
+    supported_guest_cpus = ["@platforms//cpu:x86_64"],
     backend = "wine",
     launcher = "@rules_wine//wine/runtime:supervisor",
     loader = "@company_wine//:loader",

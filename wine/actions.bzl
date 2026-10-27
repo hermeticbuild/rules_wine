@@ -1,5 +1,8 @@
 """Low-level Windows actions using one resolved execution-group context."""
 
+load("//wine:windows_import.bzl", "executable_info")
+load("//wine/private:cpu.bzl", "check_guest")
+
 _TOOLCHAIN_TYPE = Label("//wine:runner_toolchain_type")
 
 def wine_path(file):
@@ -25,8 +28,7 @@ def _resolve(ctx, *, exec_group = "default"):
 
     Returns:
         Context for run/add_path, containing WindowsRunnerInfo as windows and the
-        action's exec_group. The payload must match windows.arch; constrain the
-        execution group for fixed-CPU prebuilts.
+        action's exec_group. Capabilities do not select a different executor.
     """
     toolchains = ctx.toolchains if exec_group == "default" else ctx.exec_groups[exec_group].toolchains
     return struct(
@@ -57,7 +59,8 @@ def _configuration(record):
     # Called by Args under the consuming action's path mapper. Never serialize
     # execution paths in a separate write action: its mapping can differ.
     return json.encode({
-        "arch": record.arch,
+        "supported_guest_cpus": record.supported_guest_cpus,
+        "declared_guest_cpu": record.declared_guest_cpu,
         "loader": record.loader.path,
         "server": record.server.path,
         "payload": record.payload.path,
@@ -81,8 +84,11 @@ def _run(
         **kwargs):
     action_group = runner.exec_group
     runner = runner.windows
-    payload = executable.executable if type(executable) == "FilesToRunProvider" else executable
-    input_set = inputs if type(inputs) == "depset" else depset(inputs)
+    binary = executable_info(ctx, executable)
+    check_guest(binary, runner)
+    executable = binary.executable
+    payload = binary.file
+    input_set = depset(transitive = [inputs if type(inputs) == "depset" else depset(inputs), binary.files, binary.runfiles.files])
 
     # The wrapped executable remains a tool when the supervisor replaces it.
     # Lists can carry FilesToRunProvider; depsets carry Files.
@@ -110,7 +116,8 @@ def _run(
 
     config = ctx.actions.args()
     config.add_all([struct(
-        arch = runner.arch,
+        supported_guest_cpus = runner.supported_guest_cpus,
+        declared_guest_cpu = binary.guest_cpu,
         loader = runner.runtime.loader,
         server = runner.runtime.server,
         payload = payload,

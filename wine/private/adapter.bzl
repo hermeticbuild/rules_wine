@@ -16,7 +16,7 @@ def adapter_impl(ctx):
     runner = ctx.toolchains[Label("//wine:adapter_toolchain_type")].windows
     if runner.backend != "wine":
         fail("windows_binary requires a Wine adapter toolchain")
-    binary = payload(ctx, runner.arch)
+    binary = payload(ctx, runner)
     executable = ctx.actions.declare_file(ctx.label.name)
     config = ctx.actions.declare_file(executable.basename + ".json", sibling = executable)
     entrypoint = launcher.entrypoint(runner.launcher.executable)
@@ -27,7 +27,8 @@ def adapter_impl(ctx):
         cfg = "exec",
     )
     ctx.actions.write(config, json.encode({
-        "arch": runner.arch,
+        "supported_guest_cpus": runner.supported_guest_cpus,
+        "declared_guest_cpu": binary.guest_cpu,
         "payload": runfile_path(ctx, binary.file),
         "runfiles": True,
         "loader": runfile_path(ctx, runner.runtime.loader),

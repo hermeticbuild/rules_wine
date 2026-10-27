@@ -1,4 +1,7 @@
-"""Optional compilation transition; never transitions the final output platform."""
+"""Windows compilation transition; never transitions the final output platform."""
+
+load("//wine:windows_import.bzl", "target_executable_info")
+load(":cpu.bzl", "check_guest")
 
 PayloadPlatformInfo = provider(
     "Platform facts in the payload's optional compilation configuration.",
@@ -37,10 +40,10 @@ payload_platform = rule(
 
 def payload_attrs():
     return {
-        "binary": attr.label(executable = True, allow_files = True, mandatory = True, cfg = payload_transition),
+        "binary": attr.label(allow_files = True, mandatory = True, cfg = payload_transition),
         "target_platform": attr.label(
             providers = [platform_common.PlatformInfo],
-            doc = "Optional Windows platform for payload compilation.",
+            doc = "Windows platform for payload compilation; defaults to the wrapper CPU.",
         ),
         "_payload_platform": attr.label(default = Label("//wine/private:payload_platform"), cfg = payload_transition),
         "_allowlist_function_transition": attr.label(
@@ -48,32 +51,11 @@ def payload_attrs():
         ),
     }
 
-def payload(ctx, arch):
-    """Resolve a PE executable and preserve its runfiles.
-
-    Args:
-        ctx: Consuming rule context with payload_attrs.
-        arch: Declared payload CPU to validate after an optional transition.
-
-    Returns:
-        Executable File and merged runfiles in a struct.
-    """
-    target = ctx.attr.binary[0]
-    if ctx.attr.target_platform:
-        platform = ctx.attr._payload_platform[0][PayloadPlatformInfo]
-        if not platform.windows or platform.arch != arch:
-            fail("target_platform must be Windows/{}; got Windows={} CPU={}".format(
-                arch,
-                platform.windows,
-                platform.arch,
-            ))
-    info = target[DefaultInfo]
-    executable = info.files_to_run.executable
-    runfiles = ctx.runfiles(
-        transitive_files = depset([executable], transitive = [info.files]),
-    ).merge_all([info.default_runfiles, info.data_runfiles])
-    return struct(
-        file = executable,
-        runfiles = runfiles,
-        run_environment = target[RunEnvironmentInfo] if RunEnvironmentInfo in target else None,
-    )
+def payload(ctx, runner):
+    """Resolve the original executable and validate only explicit CPU metadata."""
+    platform = ctx.attr._payload_platform[0][PayloadPlatformInfo]
+    if not platform.windows or platform.arch == "unsupported":
+        fail("target_platform must be Windows with x86_64 or aarch64 CPU; got Windows={} CPU={}".format(platform.windows, platform.arch))
+    binary = target_executable_info(ctx, ctx.attr.binary[0])
+    check_guest(binary, runner)
+    return binary

@@ -1,5 +1,7 @@
 """Windows runner providers and user-authored toolchain implementation."""
 
+load("//wine/private:cpu.bzl", "guest_cpu")
+
 WineRuntimeInfo = provider(
     "Immutable Wine distribution built for the selected executor.",
     fields = {
@@ -12,9 +14,9 @@ WineRuntimeInfo = provider(
     },
 )
 WindowsRunnerInfo = provider(
-    "Execution contract for same-CPU Windows payloads.",
+    "Execution contract for Windows guests on a native runtime.",
     fields = {
-        "arch": "Same-CPU Windows payload architecture.",
+        "supported_guest_cpus": "Supported Windows CPUs, normalized to x86_64/aarch64.",
         "backend": "wine or native.",
         "launcher": "Linux/macOS Wine supervisor FilesToRunProvider, or None for direct native actions.",
         "runtime": "WineRuntimeInfo or None.",
@@ -44,7 +46,7 @@ def _impl(ctx):
         fail("native backend must not depend on a launcher or Wine")
     launcher = ctx.attr.launcher[DefaultInfo] if ctx.attr.launcher else None
     info = WindowsRunnerInfo(
-        arch = ctx.attr.arch,
+        supported_guest_cpus = [guest_cpu(cpu.label) for cpu in ctx.attr.supported_guest_cpus],
         backend = ctx.attr.backend,
         launcher = launcher.files_to_run if launcher else None,
         runtime = runtime,
@@ -55,7 +57,7 @@ def _impl(ctx):
 windows_runner_toolchain = rule(
     implementation = _impl,
     attrs = {
-        "arch": attr.string(mandatory = True, values = ["x86_64", "aarch64"]),
+        "supported_guest_cpus": attr.label_list(mandatory = True, allow_empty = False, providers = [platform_common.ConstraintValueInfo]),
         "backend": attr.string(mandatory = True, values = ["native", "wine"]),
         "launcher": attr.label(executable = True, cfg = "exec"),
         "loader": attr.label(allow_single_file = True, cfg = "exec"),

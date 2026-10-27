@@ -48,6 +48,6 @@ jq -e '
   (.actions | length) == 2 and
   all(.actions[]; .mnemonic == "WindowsRun" and
     .arguments[1] == "--config" and
-    (.arguments[2] | fromjson | .arch == "x86_64"))
+    (.arguments[2] | fromjson | .supported_guest_cpus == ["x86_64"]))
 ' "$scratch/actions.json" >/dev/null
 printf '%s\n' 'PASS: mapped/unmapped Wine actions, adapters, runfiles, generated payload/data, parameter files and collision fallback'

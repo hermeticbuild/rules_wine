@@ -27,7 +27,7 @@ def register_runners(distributions):
                 })
             windows_runner_toolchain(
                 name = key + "_impl",
-                arch = arch,
+                supported_guest_cpus = ["@platforms//cpu:" + arch],
                 backend = "native" if is_native else "wine",
                 launcher = None if is_native else "@rules_wine//wine/runtime:supervisor",
                 **runtime

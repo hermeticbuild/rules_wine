@@ -1,6 +1,8 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_wine//wine:toolchain.bzl", "windows_runner_toolchain")
 load("@rules_wine//wine:windows_binary.bzl", "windows_binary")
-load(":audit.bzl", "collision", "stub", "symlink_data")
+load("@rules_wine//wine:windows_import.bzl", "windows_import")
+load(":audit.bzl", "collision", "stub", "symlink_data", "typed_action")
 load(":execution.bzl", "grouped_actions")
 
 package(default_visibility = ["//visibility:public"])
@@ -11,6 +13,11 @@ platform(
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
+    exec_properties = {
+        "OSFamily": "Linux",
+        "Arch": "amd64",
+        "container-image": "docker://ubuntu:24.04",
+    },
 )
 
 platform(
@@ -19,6 +26,11 @@ platform(
         "@platforms//os:linux",
         "@platforms//cpu:aarch64",
     ],
+    exec_properties = {
+        "OSFamily": "Linux",
+        "Arch": "arm64",
+        "container-image": "docker://ubuntu:24.04",
+    },
 )
 
 platform(
@@ -31,8 +43,8 @@ platform(
 
 windows_runner_toolchain(
     name = "native_implementation",
-    arch = "x86_64",
     backend = "native",
+    supported_guest_cpus = ["@platforms//cpu:x86_64"],
 )
 
 toolchain(
@@ -58,11 +70,11 @@ stub(
 
 windows_runner_toolchain(
     name = "sidecar_implementation",
-    arch = "x86_64",
     backend = "wine",
     launcher = ":sidecar_launcher",
     loader = "loader",
     server = "server",
+    supported_guest_cpus = ["@platforms//cpu:x86_64"],
 )
 
 toolchain(
@@ -79,11 +91,11 @@ stub(name = "built_loader")
 
 windows_runner_toolchain(
     name = "generated_implementation",
-    arch = "x86_64",
     backend = "wine",
     launcher = ":launcher",
     loader = ":built_loader",
     server = "server",
+    supported_guest_cpus = ["@platforms//cpu:x86_64"],
 )
 
 toolchain(
@@ -98,11 +110,11 @@ toolchain(
 
 windows_runner_toolchain(
     name = "implementation",
-    arch = "x86_64",
     backend = "wine",
     launcher = ":launcher",
     loader = "loader",
     server = "server",
+    supported_guest_cpus = ["@platforms//cpu:x86_64"],
 )
 
 toolchain(
@@ -131,11 +143,11 @@ toolchain(
 
 windows_runner_toolchain(
     name = "implementation_arm64",
-    arch = "aarch64",
     backend = "wine",
     launcher = "launcher",
     loader = "loader",
     server = "server",
+    supported_guest_cpus = ["@platforms//cpu:aarch64"],
 )
 
 toolchain(
@@ -216,4 +228,81 @@ windows_binary(
     name = "fixed_x86",
     binary = "payload.exe",
     target_compatible_with = ["@platforms//cpu:x86_64"],
+)
+
+windows_import(
+    name = "x86_payload",
+    data = ["companion_data"],
+    executable = "payload_with_data",
+    guest_cpu = "@platforms//cpu:x86_64",
+)
+
+windows_import(
+    name = "arm_payload",
+    executable = "payload.exe",
+    guest_cpu = "@platforms//cpu:aarch64",
+)
+
+windows_binary(
+    name = "declared_x86",
+    binary = "x86_payload",
+)
+
+windows_binary(
+    name = "declared_arm",
+    binary = "arm_payload",
+)
+
+windows_binary(
+    name = "imported_adapter",
+    binary = "x86_payload",
+)
+
+cc_binary(
+    name = "source",
+    srcs = ["source.c"],
+)
+
+windows_binary(
+    name = "source_adapter",
+    binary = "source",
+)
+
+windows_binary(
+    name = "explicit_source",
+    binary = "source",
+    target_platform = "@rules_wine//platforms:windows_x86_64",
+)
+
+filegroup(
+    name = "selected_prebuilt",
+    srcs = select({
+        "@platforms//cpu:x86_64": ["@rules_wine//tests:fixture/fixture_x86_64.exe"],
+        "@platforms//cpu:aarch64": ["@rules_wine//tests:fixture/fixture_aarch64.exe"],
+    }),
+)
+
+windows_binary(
+    name = "selected_adapter",
+    binary = "selected_prebuilt",
+)
+
+filegroup(
+    name = "fixed_prebuilt",
+    srcs = ["@rules_wine//tests:fixture/fixture_x86_64.exe"],
+)
+
+windows_binary(
+    name = "fixed_target_adapter",
+    binary = "fixed_prebuilt",
+)
+
+typed_action(
+    name = "native_declared_x86",
+    tool = "x86_payload",
+)
+
+typed_action(
+    name = "native_declared_arm",
+    tool = "arm_payload",
 )
