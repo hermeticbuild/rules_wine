@@ -9,9 +9,9 @@ bazel_cmd() {
   bazel --output_base="$scratch/output" "$@"
 }
 trap 'bazel_cmd shutdown >/dev/null 2>&1' EXIT
-set -- --config=remote --jobs=80 --symlink_prefix="$scratch/bazel-" --extra_execution_platforms=//platforms:remote_linux_x86_64,//platforms:remote_linux_aarch64
+set -- --config=remote --lockfile_mode=off --jobs=80 --symlink_prefix="$scratch/bazel-" --extra_execution_platforms=//platforms:remote_linux_x86_64,//platforms:remote_linux_aarch64
 bazel_cmd build //tests:arm_bare_x86 //tests:arm_bare_arm //tests:arm_source //tests:arm_explicit_x86 //tests:arm_imported_dll //tests:arm_typed_dll //tests:source_tool "$@" > "$scratch/build.log" 2>&1
-bin=$(bazel_cmd info bazel-bin --config=remote 2>/dev/null)
+bin=$(bazel_cmd info bazel-bin --config=remote --lockfile_mode=off 2>/dev/null)
 for target in arm_bare_x86 arm_bare_arm arm_source arm_explicit_x86 arm_imported_dll arm_typed_dll source_tool; do
   cp "$bin/tests/$target.json" "$scratch/$target.json"
   jq -e '.child == "child-ok"' "$scratch/$target.json"
