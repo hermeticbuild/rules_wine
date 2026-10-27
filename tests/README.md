@@ -109,8 +109,8 @@ PE and data paths, Unicode/braces, literal environment escaping and payload
 parameter files. Split-configured inputs with colliding mapped paths must trigger
 Bazel's unmapped fallback and preserve both inputs. Output records assert the
 paths actually seen by the Windows program; `aquery` checks action-owned JSON
-parameter files. Each run uses an isolated output base and preserves logs and
-records under the printed temporary directory. Run it with
+parameter files. The script reuses the root workspace's compiler outputs and
+preserves logs and records under the printed temporary directory. Run it with
 `USE_BAZEL_VERSION=8.5.0` and `USE_BAZEL_VERSION=9.3.1`.
 On baseline `fc1913e`, `//tests:param_file` fails with
 `--experimental_output_paths=strip --modify_execution_info=WindowsRun=+supports-path-mapping`

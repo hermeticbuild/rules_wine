@@ -6,9 +6,8 @@ scratch=$(mktemp -d /tmp/rules-wine-mapping.XXXXXX)
 printf 'Verification output: %s\n' "$scratch"
 cd "$root"
 bazel_cmd() {
-  bazel --output_base="$scratch/output" "$@"
+  bazel "$@"
 }
-trap 'bazel_cmd shutdown >/dev/null 2>&1' EXIT
 for mode in strip off; do
   bazel_cmd test //tests:argv_test //tests:mapped_paths //tests:mapping_collision \
     //tests:param_file //tests:distinct_actions //tests:additional_tools \
