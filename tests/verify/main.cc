@@ -150,11 +150,14 @@ std::string output_arg(const fs::path &file) {
   return "{windows_path:" + quote(path_string(file)) + "}";
 }
 std::string runtime_config(const Config &c, const fs::path &payload,
-                           bool runfiles = false) {
-  return "{\"arch\":\"x86_64\",\"loader\":" + quote(path_string(c.loader)) +
+                           bool runfiles = false,
+                           const std::string &declared_guest = "") {
+  return "{\"supported_guest_cpus\":[\"x86_64\"],\"loader\":" +
+         quote(path_string(c.loader)) +
          ",\"server\":" + quote(path_string(c.server)) +
          ",\"payload\":" + quote(path_string(payload)) +
-         ",\"runfiles\":" + (runfiles ? "true" : "false") + "}";
+         ",\"runfiles\":" + (runfiles ? "true" : "false") +
+         ",\"declared_guest_cpu\":" + quote(declared_guest) + "}";
 }
 fs::path scratch() {
   std::string pattern =
@@ -270,9 +273,34 @@ void verify_lifecycle(const Config &c, const fs::path &dir) {
   require(wait(exit) == 37, "exit-code contract: " + read(exit.log));
   Process wrong_arch = start(c.wrong_arch, {});
   require(wait(wrong_arch) == 125 &&
-              read(wrong_arch.log).find("machine does not match") !=
+              read(wrong_arch.log).find("unsupported by this Wine runtime") !=
                   std::string::npos,
           "wrong payload CPU rejection");
+  auto reject = [&](const std::string &name, const std::string &configuration,
+                    const std::string &expected) {
+    fs::path file = dir / (name + ".json");
+    write(file, configuration);
+    auto process = launch(c.launcher, {"--config", path_string(file), "--"},
+                          dir / (name + ".log"));
+    require(wait(process) == 125 &&
+                read(process.log).find(expected) != std::string::npos,
+            name + " rejection: " + read(process.log));
+  };
+  reject("declared-mismatch", runtime_config(c, c.payload, false, "aarch64"),
+         "does not match declared guest aarch64");
+  std::string i386 = original_payload;
+  auto byte = [&](size_t offset) {
+    return static_cast<unsigned char>(i386.at(offset));
+  };
+  size_t pe = byte(60) | (byte(61) << 8) | (byte(62) << 16) | (byte(63) << 24);
+  i386.at(pe + 4) = 0x4c;
+  i386.at(pe + 5) = 0x01;
+  write(dir / "i386.exe", i386);
+  reject("i386", runtime_config(c, dir / "i386.exe"),
+         "unsupported payload PE machine 332");
+  write(dir / "not-pe.exe", "this is not a PE file");
+  reject("not-pe", runtime_config(c, dir / "not-pe.exe"),
+         "not a Windows PE executable");
   Config wrong_loader = c;
   fs::path wrong_loader_file = dir / "wrong-loader.elf";
   std::string wrong_loader_bytes(64, '\0');

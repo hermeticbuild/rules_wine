@@ -6,6 +6,7 @@ exports_files([
     "actions.bzl",
     "toolchain.bzl",
     "windows_binary.bzl",
+    "windows_import.bzl",
 ])
 
 # Adapter outputs must run on their configured target (host, or consuming exec).
