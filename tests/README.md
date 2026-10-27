@@ -49,6 +49,7 @@ jq -e '.args | index("adapter-consumer") != null' e2e/smoke/bazel-bin/adapter.js
 e2e/test_custom_archive.sh /absolute/path/to/wine-11.0-amd64-wow64.tar.xz SHA256
 e2e/test_starlark.sh
 e2e/test_adapter_platforms.sh
+e2e/test_multi_guest.sh
 e2e/test_extension.sh
 e2e/test_path_mapping.sh
 ```
@@ -174,4 +175,10 @@ deployment target 26.5 and publisher-tested OS 26.6.2 separately; exact-minimum
 Fresh prefixes emit Wine's `virtual_alloc_first_teb` assertion. The same archive
 reproduces it without the supervisor; initialization and tested ARM64 programs
 still succeed. Gatekeeper acceptance of quarantined downloads is unverified.
-Although the ARM64 archives bundle FEX, this revision retains same-CPU execution.
+Default registrations remain same-CPU. `e2e/test_multi_guest.sh` explicitly selects
+the fixture ARM64 runner/adapter toolchains, which declare both guest CPUs using
+the same pinned archive. It exercises ARM64 and amd64 PE files, source defaults,
+explicit source overrides, child processes and adjacent DLLs, and checks the
+selected execution platforms. These registrations are not enabled globally.
+After enabling multi-guest defaults, run the same checks with
+`e2e/test_multi_guest.sh --default-toolchains` to omit the fixture overrides.
