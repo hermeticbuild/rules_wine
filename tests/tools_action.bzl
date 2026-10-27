@@ -54,3 +54,9 @@ default_tools_action = rule(
     toolchains = [windows_actions.toolchain_type],
     exec_compatible_with = ["@platforms//cpu:x86_64"],
 )
+
+native_tools_action = rule(
+    implementation = _impl,
+    attrs = _attrs("default"),
+    toolchains = [windows_actions.toolchain_type],
+)

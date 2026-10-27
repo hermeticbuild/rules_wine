@@ -60,3 +60,16 @@ platform(
         "container-image": "docker://ubuntu:24.04",
     },
 )
+
+platform(
+    name = "remote_linux_aarch64",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:aarch64",
+    ],
+    exec_properties = {
+        "OSFamily": "Linux",
+        "Arch": "arm64",
+        "container-image": "docker://ubuntu:24.04",
+    },
+)
