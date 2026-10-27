@@ -17,14 +17,16 @@ case "$(uname -s)" in
   Darwin) os=osx; cpu=$(uname -m) ;;
   MINGW*|MSYS*)
     os=windows
-    cpu=${PROCESSOR_ARCHITEW6432:-$PROCESSOR_ARCHITECTURE}
+    # Git Bash can itself be x86_64-emulated on an ARM64 Windows host.
+    cpu=$(powershell.exe -NoProfile -Command \
+      '[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture' | tr -d '\r')
     scratch=$(cygpath -m "$scratch")
     ;;
   *) echo 'Unsupported executor' >&2; exit 1 ;;
 esac
 case "$cpu" in
-  ARM64|arm64|aarch64) cpu=aarch64 ;;
-  AMD64|x86_64) cpu=x86_64 ;;
+  Arm64|ARM64|arm64|aarch64) cpu=aarch64 ;;
+  X64|AMD64|x86_64) cpu=x86_64 ;;
   *) echo "Unsupported CPU: $cpu" >&2; exit 1 ;;
 esac
 guests=("$cpu")
