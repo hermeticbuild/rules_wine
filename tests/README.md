@@ -124,12 +124,19 @@ cross-compilation check covers those four OS/CPU combinations.
 
 ## Verification boundaries
 
-Linux x86_64 console execution is verified on native remote workers. The default
-Wine archive requires host glibc and libgcc_s; some subsystems need additional
-libraries. Docker's x86_64 emulation on an ARM64 host failed the raw Wine baseline
-and is not a substitute for native execution testing.
+The public Wine 11.20.1 archives are pinned by SHA-256 and preserve their complete
+installation layout. Linux distributions declare glibc 2.17 plus an available
+UTF-8 locale; these rules' native x86_64 and ARM64 remote tests use Ubuntu 24.04.
+Tests on newer workers do not re-establish the declared minimum libc version.
 
-Native Windows, Linux ARM64 and Intel macOS execution remain untested. Windows
+Exercise both Linux defaults on native workers with:
+
+```sh
+bazel build --config=remote --extra_execution_platforms=//platforms:remote_linux_x86_64,//platforms:remote_linux_aarch64 //tests:generate //tests:generate_arm64
+jq -e '.child == "child-ok"' bazel-bin/tests/generate.json bazel-bin/tests/generate_arm64.json
+```
+
+Native Windows and Intel macOS execution remain untested. Windows
 action graphs verify selection and inputs, not runtime behavior. Native local Linux
 sandbox execution remains unverified.
 
@@ -151,8 +158,12 @@ For the override, set `type = "pkg"` and
 This verification does not update the pinned LLVM dependency's default SDK URL;
 downstream macOS builds need the override until that dependency is updated.
 
-An experimental native ARM64 macOS build
-([DiagBridge 0.2.5](https://github.com/citi94/diagbridge/releases/tag/v0.2.5)) ran its
-bundled `cmd.exe` on macOS 26.5.2, but independent ARM64 executables failed outside
-Bazel too. It is not a supported default. Always test an independent program when
-evaluating a new Wine archive; a bundled program alone does not prove compatibility.
+The published macOS ARM64 archive runs independent ARM64 fixtures through Bazel
+on macOS 26.5.2 with the SDK override above. The release manifest records SDK 26.5,
+deployment target 26.5 and publisher-tested OS 26.6.2 separately; exact-minimum
+26.5 execution is not proven.
+
+Fresh prefixes emit Wine's `virtual_alloc_first_teb` assertion. The same archive
+reproduces it without the supervisor; initialization and tested ARM64 programs
+still succeed. Gatekeeper acceptance of quarantined downloads is unverified.
+Although the ARM64 archives bundle FEX, this revision retains same-CPU execution.

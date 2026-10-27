@@ -32,11 +32,17 @@ dependency first ''
 dependency second ''
 root_module ''
 query default.txt
-grep -q 'Kron4ek Wine 11.0' default.txt
+grep -q 'hermeticbuild Wine 11.20.1 linux-amd64' default.txt
+grep -q 'hermeticbuild Wine 11.20.1 linux-arm64' default.txt
+grep -q 'hermeticbuild Wine 11.20.1 macos-arm64' default.txt
 grep -q ':windows_x86_64 ' default.txt
 grep -q ':windows_aarch64 ' default.txt
 if grep -Eq ':windows_(x86_64|aarch64)_adapter' default.txt; then exit 1; fi
-if grep -Eq ':linux_aarch64 |:osx_' default.txt; then exit 1; fi
+grep -q ':linux_aarch64 ' default.txt
+grep -q ':osx_aarch64 ' default.txt
+if grep -q ':osx_x86_64' default.txt; then exit 1; fi
+[ "$(grep -Ec '^.*:(linux_x86_64|linux_aarch64|osx_aarch64|windows_x86_64|windows_aarch64) ' default.txt)" = 5 ]
+[ "$(grep -Ec '^.*:(linux_x86_64|linux_aarch64|osx_aarch64)_adapter ' default.txt)" = 3 ]
 # The extension has no acquisition API, including from transitive modules.
 dependency first 'wine.prebuilt()'
 reject removed_tag.txt 'does not have a tag class named prebuilt'
