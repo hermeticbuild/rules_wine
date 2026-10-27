@@ -1,11 +1,13 @@
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("//tests:adapter_action.bzl", "adapter_action", "runfiles_action", "runfiles_adapter_action")
 load("//tests:argv.bzl", "alias_data", "argv_record_test", "two_actions")
+load("//tests:guest_action.bzl", "guest_action")
 load("//tests:param_action.bzl", "param_action")
 load("//tests:path_mapping.bzl", "mapping_action", "mapping_input", "mapping_payload", "mapping_variant")
 load("//tests:tools_action.bzl", "default_tools_action", "tools_action")
 load("//tests:verify_test.bzl", "runtime_contract_test")
 load("//wine:windows_binary.bzl", "windows_binary")
+load("//wine:windows_import.bzl", "windows_import")
 
 cc_binary(
     name = "companion_build",
@@ -247,4 +249,41 @@ mapping_action(
     src = "mapping_input",
     binary = "mapping_payload",
     collision = True,
+)
+
+windows_binary(
+    name = "source_binary",
+    testonly = True,
+    binary = "fixture_build",
+)
+
+adapter_action(
+    name = "source_tool",
+    testonly = True,
+    tool = "source_binary",
+)
+
+windows_import(
+    name = "dll_payload",
+    data = ["fixture/companion.dll"],
+    executable = "fixture/fixture_x86_64.exe",
+    guest_cpu = "@platforms//cpu:x86_64",
+)
+
+windows_binary(
+    name = "dll_binary",
+    binary = "dll_payload",
+)
+
+adapter_action(
+    name = "imported_dll_tool",
+    arguments = ["--dll"],
+    tool = "dll_binary",
+)
+
+guest_action(
+    name = "typed_dll_tool",
+    arguments = ["--dll"],
+    exec_compatible_with = ["@platforms//cpu:x86_64"],
+    tool = "dll_payload",
 )

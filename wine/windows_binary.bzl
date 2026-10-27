@@ -1,12 +1,12 @@
-"""Run Windows executables through Wine on same-CPU Linux/macOS platforms."""
+"""Adapt Windows executables with native Linux/macOS Wine runtimes."""
 
 load("//wine/private:adapter.bzl", "adapter_impl")
 load("//wine/private:payload.bzl", "payload_attrs")
 
-windows_binary = rule(
+_windows_binary = rule(
     implementation = adapter_impl,
     executable = True,
-    attrs = payload_attrs(),
+    attrs = dict(payload_attrs(), _use_auto_exec_groups = attr.bool(default = False)),
     toolchains = [
         "//wine:adapter_toolchain_type",
         "@hermetic_launcher//launcher:finalizer_toolchain_type",
@@ -14,3 +14,20 @@ windows_binary = rule(
     ],
     doc = "Adapt a Windows executable using the toolchain matching the adapter's target OS/CPU.",
 )
+
+def windows_binary(name, target_platform = None, **kwargs):
+    """Build source tools for Windows on the wrapper CPU; inspect prebuilt CPUs at runtime.
+
+    Args:
+        name: Adapter target name.
+        target_platform: Optional explicit Windows compilation platform.
+        **kwargs: binary and ordinary executable rule attributes.
+    """
+    _windows_binary(
+        name = name,
+        target_platform = target_platform if target_platform != None else select({
+            Label("@platforms//cpu:x86_64"): Label("//platforms:windows_x86_64"),
+            Label("@platforms//cpu:aarch64"): Label("//platforms:windows_aarch64"),
+        }),
+        **kwargs
+    )

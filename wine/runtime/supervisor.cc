@@ -35,7 +35,8 @@ using rules_cc::cc::runfiles::Runfiles;
 
 namespace {
 struct Config {
-  std::string arch, loader, server, payload;
+  std::string declared_guest_cpu, loader, server, payload;
+  std::vector<std::string> supported_guest_cpus;
   std::map<std::string, std::string> env, runtime_env;
   bool runfiles = false;
 };
@@ -77,7 +78,18 @@ Config configuration(const std::string &data) {
     throw std::runtime_error("expected JSON configuration object");
   }
   Config c;
-  c.arch = root.at("arch").as_string();
+  const auto &guests = root.at("supported_guest_cpus");
+  if (guests.kind != wine::Json::array || guests.elements.empty()) {
+    throw std::runtime_error("expected nonempty supported_guest_cpus array");
+  }
+  for (const auto &guest : guests.elements) {
+    auto cpu = guest.as_string();
+    if (cpu != "x86_64" && cpu != "aarch64") {
+      throw std::runtime_error("unsupported guest CPU " + cpu);
+    }
+    c.supported_guest_cpus.push_back(cpu);
+  }
+  c.declared_guest_cpu = root.at("declared_guest_cpu").as_string();
   c.loader = root.at("loader").as_string();
   c.server = root.at("server").as_string();
   c.payload = root.at("payload").as_string();
@@ -190,7 +202,7 @@ unsigned big32(const unsigned char *p) {
          (static_cast<unsigned>(p[2]) << 8) | p[3];
 }
 #endif
-void validate_pe(const std::string &name, const std::string &arch) {
+std::string pe_cpu(const std::string &name) {
   std::ifstream file(path(name), std::ios::binary);
   std::array<unsigned char, 64> header{};
   if (!file.read(reinterpret_cast<char *>(header.data()), header.size()) ||
@@ -200,11 +212,40 @@ void validate_pe(const std::string &name, const std::string &arch) {
   file.seekg(little32(header.data() + 60));
   std::array<unsigned char, 6> pe{};
   if (!file.read(reinterpret_cast<char *>(pe.data()), pe.size()) ||
-      pe[0] != 'P' || pe[1] != 'E' || pe[2] != 0 || pe[3] != 0 ||
-      little16(pe.data() + 4) != (arch == "aarch64" ? 0xaa64 : 0x8664)) {
-    throw std::runtime_error("payload PE machine does not match " + arch);
+      pe[0] != 'P' || pe[1] != 'E' || pe[2] != 0 || pe[3] != 0) {
+    throw std::runtime_error("payload has an invalid PE header");
+  }
+  switch (little16(pe.data() + 4)) {
+  case 0x8664:
+    return "x86_64";
+  case 0xaa64:
+    return "aarch64";
+  default:
+    throw std::runtime_error("unsupported payload PE machine " +
+                             std::to_string(little16(pe.data() + 4)) +
+                             "; only x86_64 and aarch64 are supported");
   }
 }
+
+void validate_guest(const Config &c) {
+  const auto guest = pe_cpu(c.payload);
+  if (!c.declared_guest_cpu.empty() && guest != c.declared_guest_cpu) {
+    throw std::runtime_error("payload PE machine " + guest +
+                             " does not match declared guest " +
+                             c.declared_guest_cpu);
+  }
+  if (std::find(c.supported_guest_cpus.begin(), c.supported_guest_cpus.end(),
+                guest) == c.supported_guest_cpus.end()) {
+    std::string supported;
+    for (const auto &cpu : c.supported_guest_cpus) {
+      supported += (supported.empty() ? "" : ", ") + cpu;
+    }
+    throw std::runtime_error(
+        "payload PE machine " + guest +
+        " is unsupported by this Wine runtime; supported guests: " + supported);
+  }
+}
+
 void validate_native(const std::string &name, const std::string &arch) {
   std::ifstream file(path(name), std::ios::binary);
   std::array<unsigned char, 64> header{};
@@ -320,9 +361,6 @@ struct Scope {
 
 int invoke(Config c, std::vector<std::string> payload_args,
            const std::string &self) {
-  if (c.arch != "x86_64" && c.arch != "aarch64") {
-    throw std::runtime_error("unsupported payload architecture " + c.arch);
-  }
 #if defined(__x86_64__)
   const std::string cpu = "x86_64";
 #elif defined(__aarch64__)
@@ -330,9 +368,6 @@ int invoke(Config c, std::vector<std::string> payload_args,
 #else
   const std::string cpu = "unsupported";
 #endif
-  if (cpu != c.arch) {
-    throw std::runtime_error("CPU translation is unsupported");
-  }
   RunfilesContext runfiles(self);
   auto resolve = [&](const std::string &name, bool canonicalize) {
     if (name.empty()) {
@@ -349,7 +384,7 @@ int invoke(Config c, std::vector<std::string> payload_args,
   c.payload = resolve(c.payload, false);
   c.loader = resolve(c.loader, true);
   c.server = resolve(c.server, true);
-  validate_pe(c.payload, c.arch);
+  validate_guest(c);
   for (auto &arg : payload_args) {
     arg = convert(arg);
   }
@@ -364,8 +399,8 @@ int invoke(Config c, std::vector<std::string> payload_args,
   std::signal(SIGTERM, signal_handler);
   std::signal(SIGINT, signal_handler);
   std::signal(SIGHUP, signal_handler);
-  validate_native(c.loader, c.arch);
-  validate_native(c.server, c.arch);
+  validate_native(c.loader, cpu);
+  validate_native(c.server, cpu);
   std::string scratch_base;
 #ifdef __APPLE__
   // Keep Wine's Unix socket path below sockaddr_un's short macOS limit.

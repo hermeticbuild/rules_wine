@@ -48,6 +48,7 @@ jq -e '.args | index("external-consumer") != null' e2e/smoke/bazel-bin/external.
 jq -e '.args | index("adapter-consumer") != null' e2e/smoke/bazel-bin/adapter.json
 e2e/test_custom_archive.sh /absolute/path/to/wine-11.0-amd64-wow64.tar.xz SHA256
 e2e/test_starlark.sh
+e2e/test_adapter_platforms.sh
 e2e/test_extension.sh
 e2e/test_path_mapping.sh
 ```
@@ -64,8 +65,15 @@ consumer registers public toolchains without loading the default extension.
 The Starlark script checks distinct Aa/BB actions, aliases under `select()`, executable sidecar outputs,
 an external executable's data and expected payload-platform analysis errors.
 It also inspects the same adapter under x86_64 and ARM64 target platforms,
-checking the selected CPU and rejecting incompatible fixed prebuilts. ARM64
-checks inspect action graphs; they do not execute the synthetic runtime.
+checking supported guests and rejecting declared mismatches. Undeclared fixed
+prebuilts are not relabeled by the payload platform. Provider-only imports retain
+original paths, environment and runfiles; explicit companion files retain their
+artifact paths. ARM64 checks inspect graphs without executing the synthetic runtime.
+The adapter platform script builds real Windows source payloads and ELF adapters
+for Linux x86_64 and ARM64 on native remote workers, with automatic execution
+groups both on and off and opposite-CPU-first platform registration. It inspects
+wrapper and PE machine types, explicit platform overrides, and fixed versus
+configuration-selected prebuilts.
 The execution-group regression selects ARM64 Wine and x86_64 native Windows
 within one rule under both target CPUs. It checks the execution platforms, Wine
 configuration CPU, and backend-specific path arguments. A fixed-x86 action

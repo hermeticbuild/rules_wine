@@ -1,7 +1,7 @@
 # rules_wine
 
 Run Windows executables as Bazel actions and executable tools. Wine runs
-same-CPU payloads on Linux or macOS; Windows actions execute the payload directly.
+supported Windows guest CPUs on native Linux or macOS runtimes; Windows actions execute the payload directly.
 The rules do not own your compiler, SDK, language, or final output platform.
 
 Bazel 8.5.0 and 9.3.1 are exercised. Initial runtime status:
@@ -15,9 +15,9 @@ Bazel 8.5.0 and 9.3.1 are exercised. Initial runtime status:
 | macOS Intel / x86_64 | User-supplied native archive | Supervisor cross-compiled with Apple SDK 26.5 override; execution untested |
 | macOS ARM64 / ARM64 | User-supplied native archive | Supervisor cross-compiled with Apple SDK 26.5 override; experimental runtime limitation below |
 
-No Rosetta, QEMU, Box64, FEX, x86 payloads, or cross-CPU fallback. The default Wine
-archive contains extra upstream components, but these rules accept only x86_64
-and ARM64 PE payload declarations.
+Supported Windows guests are x86_64 and ARM64 only. A custom native Wine runtime
+may support both, for example through bundled FEX. No Rosetta or QEMU integration;
+i386 payloads are rejected. Capability declarations do not select a new executor.
 
 ## Setup
 
@@ -25,7 +25,7 @@ Until this module is published, consume a checkout through a local override:
 
 ```starlark
 bazel_dep(name = "rules_wine", version = "0.1.0")
-bazel_dep(name = "platforms", version = "1.1.0")  # CPU constraints for fixed prebuilts.
+bazel_dep(name = "platforms", version = "1.1.0")
 local_path_override(module_name = "rules_wine", path = "../rules_wine")
 wine = use_extension("@rules_wine//wine/extension:wine.bzl", "wine")
 use_repo(wine, "wine_toolchains")
@@ -56,46 +56,64 @@ is not a fully bundled Linux userspace. See [testing and maintenance](tests/READ
 ```starlark
 load("@rules_wine//wine:windows_binary.bzl", "windows_binary")
 
-windows_binary(
-    name = "generator",
-    binary = "generator.exe",
-    target_compatible_with = ["@platforms//cpu:x86_64"],  # This prebuilt is x86_64.
-)
+# A source target such as cc_binary(name = "generator_impl", srcs = [...]).
+windows_binary(name = "generator", binary = "generator_impl")
+
+# Ordinary fixed PE files need no metadata wrapper.
+windows_binary(name = "prebuilt_generator", binary = "generator-amd64.exe")
 ```
 
-`windows_binary` exposes a Windows executable through Wine on same-CPU Linux or
-macOS. Use it with `bazel run //:generator -- ...` or as an executable dependency
-of a generic rule. It is currently scoped to non-Windows execution; use
-`windows_actions.run` for actions that also need native Windows execution.
+`windows_binary` exposes a Windows executable through Wine on Linux or macOS.
+Use it with `bazel run //:generator -- ...` or as an executable dependency with
+`cfg = "exec"` in a generic rule. For actions that also need native Windows,
+use `windows_actions.run`.
 
-`binary` accepts one prebuilt PE file or an executable target. For source-built
-inputs, optionally set `target_platform = "//platforms:windows_x86_64"` to
-transition only the payload and its dependencies. That platform must declare
-Windows and the same CPU as the resolved adapter toolchain; your compiler/toolchain
-must support it.
+Source dependencies are compiled for a supplied Windows platform matching the
+wrapper's CPU: x86_64 or ARM64. The wrapper follows its own target configuration,
+usually the local host for `bazel run`, or the consuming action's executor for
+`cfg = "exec"`. Set `target_platform = "//platforms:my_windows_platform"` to
+choose another Windows CPU or preserve custom SDK/ABI constraints. A compatible
+compiler toolchain must be available; supplied platforms do not preserve arbitrary
+constraints from the incoming platform.
 
-The adapter follows its own target platform: the host by default, or the
-consumer's selected executor when its attribute uses `cfg = "exec"`. For a named
-execution group use `cfg = config.exec("group")`. The consuming action must run
-on that same platform. Registering remote platforms alone does not make a foreign
-adapter executable locally with `bazel run`.
+The transition requests a configuration; it never proves a PE's actual CPU.
+A fixed prebuilt stays fixed. A target with `select()` is evaluated in the chosen
+Windows configuration, including imports. At execution, Wine's supervisor reads
+the PE machine and checks it against the selected runtime's supported guests.
+Undeclared incompatibilities therefore fail during execution, not analysis.
 
-There is no `arch` attribute: Bazel selects the adapter implementation from platform
-constraints. For a prebuilt supporting only one CPU, declare that restriction with
-`target_compatible_with`, as above. Bazel cannot infer a PE file's CPU during
-toolchain resolution; the supervisor still checks its actual CPU before execution.
+For optional earlier checks and companion files:
 
-Callers provide invocation arguments and environment. There are no wrapper
-`arguments`, `env`, or `data` attributes and no location-expression expansion.
-The underlying executable owns its runfiles. Its `RunEnvironmentInfo` is forwarded
-for `bazel run`; ordinary action invocations still use the action's environment.
-Default command-line arguments of the underlying target are not inherited.
+```starlark
+load("@rules_wine//wine:windows_import.bzl", "windows_import")
 
-Companion files retain their existing runfiles layout. DLLs that require
-executable adjacency must already be adjacent in that layout; arrange generated
-executable/DLL outputs in the same directory.
-For prebuilts with companion files, expose an executable target owning those
-runfiles instead of passing a bare PE file.
+windows_import(
+    name = "generator_payload",
+    executable = "generator-amd64.exe",
+    guest_cpu = "@platforms//cpu:x86_64",
+    data = ["companion.dll"],
+)
+windows_binary(name = "declared_generator", binary = "generator_payload")
+```
+
+`windows_import` supplies `WindowsExecutableInfo`; it is a metadata target, not an
+executable wrapper. It retains the original File/FilesToRunProvider and executable
+path. Declared incompatibilities fail during analysis; Wine also rejects a PE
+whose actual CPU contradicts its declaration. CPU labels must be the standard
+`@platforms//cpu:x86_64` or `@platforms//cpu:aarch64` constraints.
+
+`data` adds companion default-output files at their existing paths. It does not
+import data targets' runfiles, relocate DLLs, or augment the underlying executable's
+own runfiles tree/manifest. DLLs requiring adjacency must already share the PE's
+artifact directory. The adapter exposes those files at their normal runfiles keys.
+An executable target's existing runfiles, including aliases, are preserved.
+
+Callers provide invocation arguments and environment. There are no adapter
+`arguments`, `env`, or `data` attributes or location-expression expansion.
+`RunEnvironmentInfo` is forwarded for `bazel run`; ordinary adapter actions use
+the action's environment. The underlying target's default command-line arguments
+are not inherited. Registering remote platforms alone does not make a foreign
+adapter runnable locally.
 
 `hermetic_launcher` resolves the supervisor and configuration through runfiles,
 then forwards invocation arguments. The Linux/macOS supervisor uses `rules_cc`'s
@@ -113,9 +131,9 @@ also set `expand_directories = False`.
 
 ## Other rule authors
 
-For a standalone Windows x86_64 prebuilt, constrain the action's execution group
-to x86_64 and resolve its runner once. The final output may target a different
-OS or CPU.
+Resolve the runner for the consuming action or execution group. The final output
+may target a different OS or CPU. This example explicitly requests a native x86_64
+executor; generic reusable rules need not hardcode a guest CPU.
 
 ```starlark
 load("@rules_wine//wine:actions.bzl", "windows_actions")
@@ -163,8 +181,9 @@ context binds the selected `WindowsRunnerInfo` (available as `runner.windows`)
 and execution group; pass that same context to `run` and `add_path`. No architecture
 or group is repeated on those calls. `resolve(ctx)` uses the default group.
 Resolution chooses the runner for the executor, independently of the rule's
-target platform. A fixed-CPU payload requires an execution constraint; its
-`target_compatible_with` does not select the consumer's executor.
+target platform. Use execution constraints when a specific native executor is
+required; the payload's `target_compatible_with` does not select that executor.
+Runtime capabilities do not participate in toolchain resolution.
 
 The helper does not compile or transition the payload. The example accepts a
 prebuilt `.exe`: `config.exec("windows")` means the group named `windows`, not
@@ -175,9 +194,15 @@ Linux executor. Use an executable attribute and pass its `FilesToRunProvider`
 when the payload owns runfiles. Alternatively, consume `windows_binary` through
 `cfg = "exec"` and ordinary `ctx.actions.run` for Wine-only executable tools.
 
+`executable` accepts a File, FilesToRunProvider, or Target. For a metadata import,
+pass `executable = ctx.attr.tool`; the target supplies WindowsExecutableInfo. Typed
+metadata carries companion inputs and declared CPU checks. Action environments
+remain explicit; RunEnvironmentInfo applies to `bazel run` through an adapter.
 A native Windows action invokes the payload directly, preserving its
 FilesToRunProvider when supplied; Wine uses its supervisor, config and complete
-distribution as declared inputs. `inputs` accepts
+distribution as declared inputs. Native declared mismatches fail in analysis;
+undeclared compatibility is handled by Windows itself, without a supervisor.
+`inputs` accepts
 a list or depset; `runtime_files`, outputs, environment, mnemonic and additional
 `ctx.actions.run` keyword arguments are supported. Args stay lazy. Explicit path
 markers inside a response file are not interpreted by the supervisor; use
@@ -210,11 +235,22 @@ but Wine markers inside their contents are not interpreted. Do not use `add_path
 inside a payload response file. Rules do not inspect or repair arbitrary strings,
 manifests or output contents.
 
-`windows_binary` is one rule requiring `adapter_toolchain_type`. Each implementation
-constrains both executor and target OS/CPU; the resolved toolchain supplies the
-architecture. This uses ordinary toolchain resolution on Bazel 8 and 9. Action helpers use
-the runner type declared by the consuming rule; it selects a same-CPU executor
-without restricting the final output platform.
+The adapter's internal rule jointly resolves its adapter, launcher template and
+finalizer on one platform, including when automatic execution groups are enabled.
+Runner actions resolve independently of the final product's target CPU.
+
+For native-CPU RBE placement, put `exec_compatible_with` on the consuming rule's
+action group, not the payload dependency. Register platforms whose `exec_properties`
+actually route to the requested worker CPU. Constraints alone do not provision
+workers. A named wrapper group uses `cfg = config.exec("windows")` for the tool
+and `exec_group = "windows", toolchain = None` on its ordinary action; a low-level
+runner action instead retains its runner toolchain association and uses
+`windows_actions.resolve(ctx, exec_group = "windows")`.
+
+A same-CPU initial payload uses the native Wine route even in a multi-guest
+runtime. This is not a process-tree guarantee: a different-CPU child can use the
+runtime's bundled emulation. Strict no-emulation policies require a restricted
+runtime or separate enforcement.
 
 ## Custom distributions and toolchains
 
@@ -244,7 +280,7 @@ load("@rules_wine//wine:toolchain.bzl", "windows_runner_toolchain")
 
 windows_runner_toolchain(
     name = "company_impl",
-    arch = "aarch64",
+    supported_guest_cpus = ["@platforms//cpu:aarch64"],
     backend = "wine",
     launcher = "@rules_wine//wine/runtime:supervisor",
     loader = "@company_wine//:loader",
@@ -289,7 +325,7 @@ Wine owns lookup of its builtin programs; no distribution-specific DLL directory
 is assumed.
 
 Define `windows_runner_toolchain` from
-`@rules_wine//wine:toolchain.bzl`. A Wine implementation needs `arch`, `backend`,
+`@rules_wine//wine:toolchain.bzl`. A Wine implementation needs `supported_guest_cpus`, `backend`,
 `launcher`, `loader`, `server`, `files`, `identity`, `requirements`, and `env`; it
 can serve runner and binary adapter registrations. Native Windows uses a direct
 action runner without `launcher` or Wine files.

@@ -58,3 +58,19 @@ symlink_data = rule(
         "src": attr.label(allow_single_file = True, mandatory = True),
     },
 )
+
+def _typed_action_impl(ctx):
+    output = ctx.actions.declare_file(ctx.label.name + ".out")
+    windows_actions.run(
+        ctx,
+        runner = windows_actions.resolve(ctx),
+        executable = ctx.attr.tool,
+        outputs = [output],
+    )
+    return [DefaultInfo(files = depset([output]))]
+
+typed_action = rule(
+    implementation = _typed_action_impl,
+    attrs = {"tool": attr.label(mandatory = True)},
+    toolchains = [windows_actions.toolchain_type],
+)
