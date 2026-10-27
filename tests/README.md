@@ -1,19 +1,45 @@
 # Testing and maintenance
 
-Run from the repository root. The `remote` config uses a native Linux x86_64
-BuildBuddy executor with Ubuntu 24.04; authentication belongs in your user config.
-For a native local Linux worker, omit `--config=remote`.
+Run from the repository root. GitHub Actions runs the public APIs on native
+Linux amd64/ARM64, macOS ARM64 and Windows amd64/ARM64 runners, with Bazel 8.5.0
+and 9.3.1. The same downstream consumer runs locally:
+
+```sh
+e2e/test_runtime.sh
+USE_BAZEL_VERSION=8.5.0 e2e/test_runtime.sh
+```
+
+Use Bash (Git Bash on Windows), Bazel/Bazelisk and jq. The script detects the
+native executor and checks Bazel's host constraints and the fixtures' PE headers.
+It tests amd64 on Linux amd64; ARM64 and amd64 on Linux/macOS ARM64; and the
+native guest CPU on Windows. Wine platforms exercise both `windows_actions.run`
+and `windows_binary`; Windows exercises the direct-action backend.
+
+Each combination checks generated input/output paths with spaces and Unicode,
+arguments, environment and child execution. Linux/macOS run with path mapping off
+and on. Windows runs without mapping: Bazel 8/9 have no local Windows sandbox
+strategy that supports mapped actions. Native Windows mapping needs a suitable
+remote executor and remains unverified.
+The consumer uses only the default Wine registrations. An explicit compiler SDK
+override works around LLVM 0.7.6's broken Apple SDK URL; it does not replace Wine.
+No remote executor or runtime cache is used. Logs, output records and action graphs
+remain in the printed temporary directory and are uploaded by CI on failure.
+
+The separate Linux regression jobs retain the detailed lifecycle, runfiles,
+path-mapping collision, Starlark and extension checks. They also run locally.
+For optional remote investigation, root-workspace Bazel commands accept
+`--config=remote`; BuildBuddy authentication belongs in your user config.
 
 ## Behavior checks
 
 ```sh
-bazel test //tests:integration --config=remote
+bazel test //tests:integration
 bazel build //tests:generate //tests:adapter_tool \
   //tests:param_file \
   //tests:additional_tools //tests:default_group //tests:default_group_tools \
   //tests:external_tools //tests:distinct_actions \
-  --config=remote
-bazel test //tests:argv_test --config=remote --noenable_runfiles
+  --lockfile_mode=off
+bazel test //tests:argv_test --noenable_runfiles
 ```
 
 These use independent Windows executables to check output generation, DLL loading,
@@ -43,19 +69,17 @@ bazel aquery //tests:generate --config=remote \
 ## Consumers and Bazel versions
 
 ```sh
-(cd e2e/smoke && bazel build //:generate --config=remote)
-jq -e '.args | index("external-consumer") != null' e2e/smoke/bazel-bin/external.json
-jq -e '.args | index("adapter-consumer") != null' e2e/smoke/bazel-bin/adapter.json
-e2e/test_custom_archive.sh /absolute/path/to/wine-11.0-amd64-wow64.tar.xz SHA256
+e2e/test_runtime.sh
+e2e/test_custom_archive.sh /absolute/path/to/wine-linux-amd64.tar.zst SHA256
 e2e/test_starlark.sh
 e2e/test_extension.sh
 e2e/test_path_mapping.sh
-e2e/test_cpu_translation.sh
 ```
 
 The consumer exercises the public module setup, action helper and binary adapter.
 The script tests a custom
-archive through `http_archive`; supplying an incorrect checksum must fail fetching.
+archive through `http_archive`; supplying an incorrect checksum fails fetching.
+Archives with a containing directory accept an optional third `strip_prefix` argument.
 Keep fixture compilers and test helpers out of production dependency paths.
 The Starlark and extension scripts retain their temporary workspaces for
 inspection. Each accepts an optional ruleset checkout path. The extension checks
@@ -167,15 +191,11 @@ deployment target 26.5 and publisher-tested OS 26.6.2 separately; exact-minimum
 Fresh prefixes emit Wine's `virtual_alloc_first_teb` assertion. The same archive
 reproduces it without the supervisor; initialization and tested ARM64/amd64 programs
 still succeed. Gatekeeper acceptance of quarantined downloads is unverified.
-The CPU-translation regression uses only the default extension registrations.
-It runs the checked-in amd64 PE and its child on native ARM64 Linux workers through
-both `windows_actions.run` and `windows_binary`. It checks output records and the
-actions' execution platforms, independently identifying the payload as an amd64 PE.
-Run `e2e/test_cpu_translation.sh` with `USE_BAZEL_VERSION=8.5.0` and `9.3.1`.
+The native runtime matrix includes the CPU-translation regression using only
+default extension registrations. It runs the checked-in amd64 PE and its child on
+ARM64 through both APIs, checks action placement and independently reads the PE CPU.
 Before removing the supervisor's payload CPU check, these actions fail with
 `payload PE machine does not match aarch64`.
 
-A downstream macOS ARM64 consumer with the SDK override above also executed the
-amd64 fixture and its child through both APIs using the default extension.
-The adapter was a native ARM64 Mach-O executable; both actions ran on the local
-ARM64 host. No Rosetta or custom Wine registration was used.
+The checked-in downstream consumer uses the SDK override above on macOS ARM64.
+No Rosetta or custom Wine registration is used.

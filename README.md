@@ -4,6 +4,10 @@ Run Windows executables as Bazel actions and executable tools. Wine runs
 payloads on Linux or macOS; Windows actions execute the payload directly.
 The rules do not own your compiler, SDK, language, or final output platform.
 
+The [native E2E suite](tests/README.md) exercises the default toolchains on the
+five required executor platforms with Bazel 8 and 9. Run `e2e/test_runtime.sh`
+locally; GitHub Actions runs the same consumer and separate Linux regression tests.
+
 Bazel 8.5.0 and 9.3.1 are exercised. Initial runtime status:
 
 | Executor / Windows payload | Acquisition | Validation |

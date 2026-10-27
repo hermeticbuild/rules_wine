@@ -44,10 +44,15 @@ for guest in "${guests[@]}"; do
 done
 flags=(--lockfile_mode=off --remote_executor= --remote_cache= --disk_cache=
   --remote_accept_cached=false --symlink_prefix="$scratch/bazel-")
-bazel_cmd query @platforms//host:host --lockfile_mode=off --output=build > "$scratch/host.txt"
+echo "Expected native executor: $os/$cpu"
+bazel_cmd query @platforms//host:host --lockfile_mode=off --output=build | tee "$scratch/host.txt"
 grep -q "cpu:$cpu" "$scratch/host.txt"
 grep -q "os:$os" "$scratch/host.txt"
-for mode in off strip; do
+modes=(off strip)
+# Bazel has no local Windows sandbox strategy capable of path mapping.
+# Mapped native Windows actions need a suitable remote executor, not this job.
+if [[ $os == windows ]]; then modes=(off); fi
+for mode in "${modes[@]}"; do
   bazel_cmd build "${targets[@]}" "${flags[@]}" --experimental_output_paths="$mode" \
     '--modify_execution_info=WindowsRun|WineAdapterConsumer=+supports-path-mapping' \
     2>&1 | tee "$scratch/$mode.log"
@@ -81,4 +86,4 @@ jq -e --arg os "$os" --arg cpu "$cpu" --argjson count "${#targets[@]}" '
       (.arguments[2] | fromjson | .arch) == $cpu)
   end)
 ' "$scratch/actions.json" >/dev/null
-echo "PASS: $os/$cpu, guests ${guests[*]}, APIs ${apis[*]}, mapping off/strip"
+echo "PASS: $os/$cpu, guests ${guests[*]}, APIs ${apis[*]}, mapping ${modes[*]}"

@@ -52,14 +52,29 @@ jobs:
         run: |
           bash e2e/test_starlark.sh
           bash e2e/test_extension.sh
-      - name: Preserve failure logs
-        if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - name: Caller-supplied archive through public toolchains
+        if: matrix.platform == 'regressions'
+        run: |
+          curl --fail --location --retry 3 \
+            https://github.com/hermeticbuild/wine-prebuilt/releases/download/11.20.1/wine-linux-amd64-11.20.1.tar.zst \
+            -o "$RUNNER_TEMP/custom-wine.tar.zst"
+          bash e2e/test_custom_archive.sh "$RUNNER_TEMP/custom-wine.tar.zst" \
+            ce069b8ea2c8e301890fd96d58cebe3945a4a474776804d1d876692fa20cb49d
+      - name: Preserve runtime failure logs
+        if: failure() && matrix.platform != 'regressions'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: logs-${{ matrix.platform }}-${{ matrix.bazel }}
           path: |
             ${{ runner.temp }}/rules-wine-*/*.log
             ${{ runner.temp }}/rules-wine-*/*.json
+            ${{ runner.temp }}/rules-wine-*/*.txt
+      - name: Preserve regression failure logs
+        if: failure() && matrix.platform == 'regressions'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: logs-regressions-${{ matrix.bazel }}
+          path: |
             /tmp/rules-wine-*/*.log
             /tmp/rules-wine-*/*.json
             bazel-testlogs/**/test.log
