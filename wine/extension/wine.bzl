@@ -3,48 +3,53 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("//wine/private:repositories.bzl", "registration_repository")
 
-_DEFAULT = struct(
-    urls = ["https://github.com/Kron4ek/Wine-Builds/releases/download/11.0/wine-11.0-amd64-wow64.tar.xz"],
-    sha256 = "39574efa1132c3ca0d5c77dd2eddbe4a49cca0d6cc2c290ff4924493a1c40314",
-    integrity = "",
-    strip_prefix = "wine-11.0-amd64-wow64",
-    loader = "bin/wine",
-    server = "bin/wineserver",
-    files = ["**"],
-    arch = "x86_64",
-    exec_os = "linux",
-    env = {},
-    identity = "Kron4ek Wine 11.0 amd64 WoW64",
-    requirements = "Linux glibc ELF interpreter; glibc, libm, libgcc_s; optional subsystem libraries depend on payload. See README.md.",
-)
+_VERSION = "11.20.1"
+_RELEASE = "https://github.com/hermeticbuild/wine-prebuilt/releases/download/" + _VERSION
+_DISTRIBUTIONS = {
+    "linux_x86_64": struct(
+        platform = "linux-amd64",
+        sha256 = "ce069b8ea2c8e301890fd96d58cebe3945a4a474776804d1d876692fa20cb49d",
+        guests = ["x86_64"],
+        requirements = "Linux glibc 2.17 or newer and an available UTF-8 locale; see the release manifest and DISTRIBUTION.md.",
+    ),
+    "linux_aarch64": struct(
+        platform = "linux-arm64",
+        sha256 = "878ff847e6700b17eddbdc9b4c1bdd29965ddc3f26c0f550cc8347150de9f2a0",
+        guests = ["aarch64", "x86_64"],
+        requirements = "Linux glibc 2.17 or newer and an available UTF-8 locale; bundled FEX for amd64 guests. See the release manifest and DISTRIBUTION.md.",
+    ),
+    "osx_aarch64": struct(
+        platform = "macos-arm64",
+        sha256 = "f59e73741f83558fcbef00bc4efcbc760f9e69973cfdf1eff96e9aaafbeedf81",
+        guests = ["aarch64", "x86_64"],
+        requirements = "macOS ARM64, deployment target 26.5; bundled FEX for amd64 guests. Unsigned command-line runtime; see the release manifest and DISTRIBUTION.md.",
+    ),
+}
 
 def _archive(name, distribution):
     http_archive(
         name = name,
-        urls = distribution.urls,
+        urls = ["{}/wine-{}-{}.tar.zst".format(_RELEASE, distribution.platform, _VERSION)],
         sha256 = distribution.sha256,
-        integrity = distribution.integrity,
-        strip_prefix = distribution.strip_prefix,
         build_file_content = "\n".join([
             'package(default_visibility = ["//visibility:public"])',
-            'filegroup(name = "loader", srcs = [{}])'.format(repr(distribution.loader)),
-            'filegroup(name = "server", srcs = [{}])'.format(repr(distribution.server)),
-            'filegroup(name = "files", srcs = glob({}))'.format(repr(distribution.files)),
+            'filegroup(name = "loader", srcs = ["bin/wine"])',
+            'filegroup(name = "server", srcs = ["bin/wineserver"])',
+            'filegroup(name = "files", srcs = glob(["**"]))',
             "",
         ]),
     )
 
 def _impl(ctx):
-    distributions = {"linux_x86_64": _DEFAULT}
     registrations = {}
-    for key, distribution in sorted(distributions.items()):
+    for key, distribution in sorted(_DISTRIBUTIONS.items()):
         repo = "wine_prebuilt_" + key
         _archive(repo, distribution)
         registrations[key] = {
             "repository": repo,
-            "identity": distribution.identity,
+            "identity": "hermeticbuild Wine {} {}".format(_VERSION, distribution.platform),
             "requirements": distribution.requirements,
-            "env": distribution.env,
+            "supported_guest_cpus": ["@platforms//cpu:" + cpu for cpu in distribution.guests],
         }
     registration_repository(name = "wine_toolchains", distributions = json.encode(registrations))
 

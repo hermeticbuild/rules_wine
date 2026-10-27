@@ -49,6 +49,7 @@ jq -e '.args | index("adapter-consumer") != null' e2e/smoke/bazel-bin/adapter.js
 e2e/test_custom_archive.sh /absolute/path/to/wine-11.0-amd64-wow64.tar.xz SHA256
 e2e/test_starlark.sh
 e2e/test_adapter_platforms.sh
+e2e/test_multi_guest.sh
 e2e/test_extension.sh
 e2e/test_path_mapping.sh
 ```
@@ -132,14 +133,17 @@ cross-compilation check covers those four OS/CPU combinations.
 
 ## Verification boundaries
 
-Linux x86_64 console execution is verified on native remote workers. The default
-Wine archive requires host glibc and libgcc_s; some subsystems need additional
-libraries. Docker's x86_64 emulation on an ARM64 host failed the raw Wine baseline
-and is not a substitute for native execution testing.
+The public Wine 11.20.1 archives are verified by their pinned SHA-256, executable
+layout and release manifests. Linux distributions declare glibc 2.17 plus an
+available UTF-8 locale; these rules' remote tests use Ubuntu 24.04. Archive support
+on an older libc is not re-established by tests on newer workers.
 
-Native Windows, Linux ARM64 and Intel macOS execution remain untested. Windows
-action graphs verify selection and inputs, not runtime behavior. Native local Linux
-sandbox execution remains unverified.
+The multi-guest script exercises native Linux ARM64 and x86_64 execution platforms,
+source defaults, bare PE inputs and explicit x86_64 source compilation on ARM64.
+The latter uses bundled FEX, including fixture child processes and adjacent DLLs.
+The generated action graph must select the requested native executor.
+Native Windows and Intel macOS runtime execution remain untested. Their action or
+cross-compilation graphs do not establish runtime behavior.
 
 The source-built C++ runfiles fixture runs through both a direct
 `FilesToRunProvider` action and `windows_binary` as an action tool. Both verify
@@ -159,8 +163,18 @@ For the override, set `type = "pkg"` and
 This verification does not update the pinned LLVM dependency's default SDK URL;
 downstream macOS builds need the override until that dependency is updated.
 
-An experimental native ARM64 macOS build
-([DiagBridge 0.2.5](https://github.com/citi94/diagbridge/releases/tag/v0.2.5)) ran its
-bundled `cmd.exe` on macOS 26.5.2, but independent ARM64 executables failed outside
-Bazel too. It is not a supported default. Always test an independent program when
-evaluating a new Wine archive; a bundled program alone does not prove compatibility.
+A native macOS 26.5.2 Bazel 9.3.1 consumer with the documented SDK override built
+and ran three Mach-O ARM64 wrappers: automatic ARM64 source, explicit amd64 source,
+and a bare amd64 prebuilt. Source tools reported their expected guest CPU; the
+prebuilt fixture recorded `child-ok`. Automatic execution groups were enabled for execution; rebuilding with them
+disabled preserved all three ARM64 wrapper formats. The source PE headers were
+independently inspected as Aarch64 and x86-64.
+The release manifest records SDK 26.5, deployment target 26.5 and publisher-tested
+OS 26.6.2 separately; exact-minimum 26.5 execution is not proven.
+
+Fresh prefixes emit Wine's `virtual_alloc_first_teb` assertion. The same published
+archive reproduces it under bare `wine wineboot.exe --init` with the supervisor's
+environment, returning zero; independent ARM64 and amd64 payloads then run and
+spawn children successfully. It is a distribution bootstrap caveat, not a
+supervisor-specific failure. Tests do not establish Gatekeeper acceptance of a
+quarantined download or notarization.

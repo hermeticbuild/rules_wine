@@ -4,20 +4,20 @@ Run Windows executables as Bazel actions and executable tools. Wine runs
 supported Windows guest CPUs on native Linux or macOS runtimes; Windows actions execute the payload directly.
 The rules do not own your compiler, SDK, language, or final output platform.
 
-Bazel 8.5.0 and 9.3.1 are exercised. Initial runtime status:
+Bazel 8.5.0 and 9.3.1 are exercised. The pinned defaults are:
 
-| Executor / Windows payload | Acquisition | Validation |
+| Executor | Supported Windows guests | Route |
 | --- | --- | --- |
-| Linux x86_64 / x86_64 | Pinned Wine 11.0 default | Remote actions, adapters and lifecycle pass |
-| Linux ARM64 / ARM64 | User-supplied native archive | Supervisor cross-compiled; execution untested |
-| Windows x86_64 / x86_64 | No Wine required | Direct-action graph verified; execution untested |
-| Windows ARM64 / ARM64 | No Wine required | Direct-action graph verified; execution untested |
-| macOS Intel / x86_64 | User-supplied native archive | Supervisor cross-compiled with Apple SDK 26.5 override; execution untested |
-| macOS ARM64 / ARM64 | User-supplied native archive | Supervisor cross-compiled with Apple SDK 26.5 override; experimental runtime limitation below |
+| Linux x86_64 | x86_64 | Native Wine |
+| Linux ARM64 | ARM64, x86_64 | Native Wine / bundled FEX |
+| macOS ARM64 | ARM64, x86_64 | Native Wine / bundled FEX |
+| Windows x86_64 | x86_64 | Direct action |
+| Windows ARM64 | ARM64 | Direct action |
 
-Supported Windows guests are x86_64 and ARM64 only. A custom native Wine runtime
-may support both, for example through bundled FEX. No Rosetta or QEMU integration;
-i386 payloads are rejected. Capability declarations do not select a new executor.
+Supported guests are x86_64 and ARM64 only, even where an archive contains i386.
+No Rosetta or QEMU integration. Capability declarations do not select a different
+executor. Native Windows has no adapter registration; macOS Intel requires a
+custom runtime/toolchain.
 
 ## Setup
 
@@ -44,12 +44,17 @@ version requires Bazel 8.5 or newer.
 Native Windows registrations have no Wine archive dependency. Archives are fetched
 only when referenced.
 
-The default is [Kron4ek Wine 11.0 amd64 WoW64](https://github.com/Kron4ek/Wine-Builds/releases/tag/11.0),
-SHA256 `39574efa1132c3ca0d5c77dd2eddbe4a49cca0d6cc2c290ff4924493a1c40314`.
-It requires the host glibc ELF interpreter, libc/libdl/libpthread and libgcc_s.
-Ubuntu 24.04 console execution was verified; missing FreeType emits warnings.
-Other Windows subsystems can require additional host libraries. A pinned archive
-is not a fully bundled Linux userspace. See [testing and maintenance](tests/README.md).
+Defaults use the public [hermeticbuild Wine 11.20.1 release](https://github.com/hermeticbuild/wine-prebuilt/releases/tag/11.20.1).
+Each archive is pinned by SHA-256 in the extension and retains its full layout.
+Linux distributions require glibc 2.17 or newer and an available UTF-8 locale;
+other Windows subsystems may need additional host libraries. macOS ARM64 has a
+26.5 deployment target; the release was built/tested on 26.6.2 and these rules'
+Bazel wrappers were exercised on 26.5.2. This does not prove execution on exact
+26.5. The macOS archive is an unsigned command-line runtime, not a notarized app.
+See release manifests, `DISTRIBUTION.md` and [testing notes](tests/README.md).
+
+The pinned `@llvm` 0.7.6 default macOS SDK URL is unavailable. macOS source builds
+currently need the SDK archive override documented in the testing notes.
 
 ## Executable adapters
 
@@ -311,9 +316,10 @@ must be native ELF or Mach-O executables; the supervisor checks their CPU header
 before launch (no Rosetta fallback). Shell-script Wine launchers are not accepted.
 Keep the complete installation layout.
 
-The extension supplies pinned Linux x86-64 Wine and native Windows x86-64/ARM64
-registrations only. It has no tags and does not combine custom archives from
-transitive modules. Linux ARM64 and macOS require custom toolchains. For custom-only
+The extension supplies three pinned Wine runtimes and native Windows x86-64/ARM64
+registrations: five runners and three adapters. It has no tags and does not combine
+custom archives from transitive modules. Individual named registrations can be
+selected instead of `:all`. For custom-only
 setup, omit the extension and register only your own toolchains. Adding a
 `bazel_dep` alone does not register the defaults.
 
@@ -364,7 +370,7 @@ the four Linux/macOS cross-compilation targets;
 `tests/update_fixtures.sh --config=remote` rebuilds development-only fixtures,
 which are not consumer dependencies.
 
-macOS ARM64 requires a compatible native Wine archive. The experimental build
-evaluated so far could run its bundled programs but failed independent ARM64
-executables outside Bazel too. General external-program execution remains
-**unverified**, and no macOS archive is selected by default.
+The published macOS runtime prints a `virtual_alloc_first_teb` assertion during
+fresh prefix initialization. This also occurs with bare Wine; initialization and
+the independently compiled ARM64/amd64 fixtures still return success. Native
+Windows runtime execution and Intel macOS execution remain unverified.

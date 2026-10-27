@@ -23,9 +23,9 @@ The project is unreleased: choose a clean API without compatibility shims for ob
 - No automatic executor reselection based on payload providers or PE inspection.
 - Declared incompatibility may fail during analysis; undeclared-file incompatibility can only be checked at execution. The latter is the recommended tradeoff for wrapper-free declarations and must be highlighted in the review report.
 
-## Existing implementation and defects being corrected
+## Original implementation and defects corrected
 
-Inspect these paths before editing:
+The original implementation paths were:
 
 - wine/toolchain.bzl: WindowsRunnerInfo.arch conflates executor and guest CPU.
 - wine/private/registrations.bzl: two generic types, runner and adapter; native-platform registrations.
@@ -40,7 +40,7 @@ The invariant after this change is: Wine and wineserver match the executor-nativ
 
 ## Consumer API examples
 
-Examples are the proposed public contract. Exact exported filenames can follow existing repository style.
+Examples describe the implemented public contract.
 
 ### Default setup
 
@@ -227,9 +227,9 @@ The standard distributions suffice to run a same-CPU initial payload natively ev
 - Keep one default runtime per executor pair. Capability lists do not participate in toolchain resolution.
 - Preserve FilesToRunProvider runfiles, RunEnvironmentInfo forwarding where applicable, DLL adjacency and lazy Args serialization. No file-content reads in repository rules for generated payloads, filename inference, or eager execution-path strings.
 
-## Decisions and release gates to resolve before implementation
+## Decisions and release gates
 
-1. The review found the wrapper macro/select/outgoing transition valid on Bazel 8.5 in principle. A focused graph prototype remains the first implementation task: custom execution platforms, explicit target_platform, configuration-dependent imports, and correct wrapper/payload CPU with AEGs on and off. Do not branch on opaque platform label names.
+1. The source graph was prototyped and then tested on Bazel 8.5 and 9.3: custom execution platforms, explicit target_platform, configuration-dependent imports, and real wrapper/payload machine headers with AEGs on and off. CPU constraint selects are explicit; no opaque platform-name inference.
 2. Optional metadata signature and import ownership are settled above: provider-only import, original executable/runfiles retained, executable= accepts File, FilesToRunProvider, or Target. No additional consumer decision is needed for this correction.
 3. Confirm acceptance of execution-time errors for undeclared prebuilts. The user accepted analysis errors for known mismatches and requested the simpler metadata-free default; do not claim all failures can occur in analysis.
 4. Public default archives: gate resolved. On 2026-10-27 the user explicitly authorized publishing wine-prebuilt 11.20.1, and the main agent made that release non-draft without replacing any of its 38 assets. Anonymous checksum downloads for all three runtime archives succeeded. Use the public release URLs and verify the actual archives; prior same-commit CI artifacts have different hashes. The macOS unsigned/not-notarized status remains documented in the release notes.
@@ -303,4 +303,17 @@ Use real fixtures and existing meaningful tests. Demonstrate baseline same-CPU r
 - Generic API checks passed: Starlark graph suites on Bazel 8.5/9.3, Linux x86_64 runtime integration (3 tests), default-source wrapper, typed DLL action and imported DLL wrapper.
 - Release archive SHA-256 values and root-level bin/wine + bin/wineserver layout verified against public downloads. Linux manifests advertise glibc 2.17 plus UTF-8 locale; macOS deployment 26.5, SDK 26.5 and prior tested OS 26.6.2 are separate facts. Rules intentionally expose no i386 guest even where Linux archives contain it.
 
-- Implementation review refined the low-level API: `executable=` accepts File, FilesToRunProvider, or Target. Pass `ctx.attr.tool` for a `windows_import`; provider membership on Target is exact. Bazel reports custom provider instances as `struct`, so accepting bare provider instances would require structural or reconstruction checks. The simpler Target boundary avoids that machinery and also preserves ordinary executable targets' files/runfiles. This supersedes the proposed bare WindowsExecutableInfo argument above.
+- Implementation review refined the low-level API: `executable=` accepts File, FilesToRunProvider, or Target. Pass `ctx.attr.tool` for a `windows_import`; provider membership on Target is exact. Bazel reports custom provider instances as `struct`, so accepting bare provider instances would require structural or reconstruction checks. The simpler Target boundary avoids that machinery and also preserves ordinary executable targets' files/runfiles. This replaced the initial bare-provider proposal; the main contract above reflects the implemented Target boundary.
+
+## Completed implementation and checks
+
+- PR #2 removed extension tags and transitive override composition, retaining custom-only public toolchains. The user merged it as `d3c7a6a`; the implementation stack was rebased onto that main revision without modifying the main checkout.
+- PR #3 (`cerisier/multi-guest-wine-runtimes`, commit `3b998b8`) implements capability declarations, execution-time PE detection, source defaults and metadata imports. Known declarations fail in analysis; undeclared Wine payloads are checked before initialization; native Windows remains direct.
+- `e2e/test_adapter_platforms.sh` passed on Bazel 8.5.0 and 9.3.1. Both native Linux CPUs, AEG enabled/disabled, opposite-platform-first registration, real ELF wrapper/PE payload machine inspection, explicit x86_64 override, and selected/fixed prebuilts passed.
+- `e2e/test_starlark.sh` passed on both Bazel versions, including native Windows direct actions and declared mismatch, runfiles/sidecars/environment forwarding, typed imports, separate action groups, and missing compatible executors.
+- Published 11.20.1 defaults expose five runners and three adapters. Linux ARM64/amd64 guest actions execute on native workers; ARM64's bare amd64 PE, amd64 source override, typed and wrapper adjacent-DLL cases all report successful child execution.
+- The native macOS consumer passed on macOS 26.5.2 with Bazel 9.3.1 and SDK 26.5 override: default ARM64 source, explicit amd64 source and bare amd64 PE all execute. Every wrapper is Mach-O ARM64; source PE headers are ARM64 and amd64 as requested. AEG enabled/disabled preserves wrapper CPU. Both custom-only toolchains and the default extension registration passed.
+- macOS prefix initialization prints a `virtual_alloc_first_teb` assertion. Bare published Wine reproduces the same message and returns zero; independent ARM64 and amd64 fixtures then run successfully. This is an existing distribution bootstrap caveat. No runtime result on exact minimum macOS 26.5 or native Windows is claimed.
+
+- Final first-party checks passed: extension checks on Bazel 8.5/9.3; native Linux multi-guest/action-platform matrix on both; mapped/unmapped/collision paths and argv on both; Linux lifecycle/layout/argv integration on 9.3 (3/3). Source and runtime changes passed narrow reviews, buildifier, clang-format and diff whitespace checks.
+- Native Windows and Intel macOS execution, exact macOS 26.5 minimum, quarantined-download Gatekeeper acceptance and process-tree no-emulation enforcement remain outside demonstrated coverage. Linux release manifests declare glibc 2.17 compatibility; rules integration ran on Ubuntu 24.04 rather than re-proving the old-libc qualification.
