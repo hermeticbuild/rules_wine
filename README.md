@@ -218,37 +218,68 @@ without restricting the final output platform.
 
 ## Custom distributions and toolchains
 
+Acquire custom archives with a standard repository rule in `MODULE.bazel`:
+
 ```starlark
-wine.prebuilt(
-    arch = "aarch64",
-    exec_os = "linux",  # "osx" for native macOS Wine.
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+http_archive(
+    name = "company_wine",
     urls = ["https://your-artifact-store/wine-arm64.tar.xz"],
-    sha256 = "<actual archive sha256>",  # Or integrity, exactly one.
+    sha256 = "<actual archive sha256>",
     strip_prefix = "wine-arm64",
-    loader = "bin/wine",
-    server = "bin/wineserver",
-    files = ["**"],
+    build_file_content = """
+package(default_visibility = ["//visibility:public"])
+filegroup(name = "loader", srcs = ["bin/wine"])
+filegroup(name = "server", srcs = ["bin/wineserver"])
+filegroup(name = "files", srcs = glob(["**"]))
+""",
+)
+register_toolchains("//:company_runner", "//:company_adapter")
+```
+
+Declare the implementation and both registrations in `BUILD.bazel`:
+
+```starlark
+load("@rules_wine//wine:toolchain.bzl", "windows_runner_toolchain")
+
+windows_runner_toolchain(
+    name = "company_impl",
+    arch = "aarch64",
+    backend = "wine",
+    launcher = "@rules_wine//wine/runtime:supervisor",
+    loader = "@company_wine//:loader",
+    server = "@company_wine//:server",
+    files = "@company_wine//:files",
     identity = "your Wine build and revision",
     requirements = "your audited host dependency baseline",
 )
-use_repo(wine, "wine_toolchains")
-register_toolchains("@wine_toolchains//:all")
+
+toolchain(
+    name = "company_runner",
+    toolchain = "company_impl",
+    toolchain_type = "@rules_wine//wine:runner_toolchain_type",
+    exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
+)
+
+toolchain(
+    name = "company_adapter",
+    toolchain = "company_impl",
+    toolchain_type = "@rules_wine//wine:adapter_toolchain_type",
+    exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
+    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
+)
 ```
 
-`http_archive` owns download, checksum, mirror retry and extraction. Archive paths
-must stay relative. Loader/server must be native ELF or Mach-O executables;
-the supervisor checks their CPU headers before launch (no Rosetta fallback).
-Shell-script Wine launchers are not accepted. Keep the complete installation layout.
+`http_archive` owns download, checksum, mirror retry and extraction. Loader/server
+must be native ELF or Mach-O executables; the supervisor checks their CPU headers
+before launch (no Rosetta fallback). Shell-script Wine launchers are not accepted.
+Keep the complete installation layout.
 
-The extension always generates `wine_toolchains`, like `rules_qemu`'s conventional
-toolchain repository. It includes pinned Linux x86-64 Wine and native Windows
-x86-64/ARM64 registrations. Each `prebuilt` overrides or adds one `exec_os`/`arch`
-pair directly; no named distribution sets or `.toolchains(...)` call is needed.
-Linux ARM64 and macOS require a custom prebuilt; missing platforms are omitted,
-never substituted. A root override takes precedence over dependency declarations
-for the same platform. Identical dependency declarations share an archive;
-conflicting ones require a root override. Each module may declare a platform only
-once. Internal archive names are derived from the executor OS and CPU.
+The extension supplies pinned Linux x86-64 Wine and native Windows x86-64/ARM64
+registrations only. It has no tags and does not combine custom archives from
+transitive modules. Linux ARM64 and macOS require custom toolchains. For custom-only
+setup, omit the extension and register only your own toolchains. Adding a
+`bazel_dep` alone does not register the defaults.
 
 Distribution `env` may supply loader library paths using `{loader_dir}` and
 `{server_dir}`, e.g. `DYLD_FALLBACK_LIBRARY_PATH = "{loader_dir}/../../libs"`.
@@ -257,7 +288,7 @@ The supervisor initializes each private prefix with Wine's `wineboot.exe --init`
 Wine owns lookup of its builtin programs; no distribution-specific DLL directory
 is assumed.
 
-For a complete override, define `windows_runner_toolchain` from
+Define `windows_runner_toolchain` from
 `@rules_wine//wine:toolchain.bzl`. A Wine implementation needs `arch`, `backend`,
 `launcher`, `loader`, `server`, `files`, `identity`, `requirements`, and `env`; it
 can serve runner and binary adapter registrations. Native Windows uses a direct
