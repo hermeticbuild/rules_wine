@@ -12,9 +12,9 @@ WineRuntimeInfo = provider(
     },
 )
 WindowsRunnerInfo = provider(
-    "Execution contract for same-CPU Windows payloads.",
+    "Execution contract for Windows payloads.",
     fields = {
-        "arch": "Same-CPU Windows payload architecture.",
+        "arch": "Native executor architecture; Wine may support additional payload CPUs.",
         "backend": "wine or native.",
         "launcher": "Linux/macOS Wine supervisor FilesToRunProvider, or None for direct native actions.",
         "runtime": "WineRuntimeInfo or None.",

@@ -1,4 +1,4 @@
-"""Run Windows executables through Wine on same-CPU Linux/macOS platforms."""
+"""Run Windows executables through native Wine on Linux/macOS platforms."""
 
 load("//wine/private:adapter.bzl", "adapter_impl")
 load("//wine/private:payload.bzl", "payload_attrs")

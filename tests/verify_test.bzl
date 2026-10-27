@@ -17,7 +17,6 @@ def _impl(ctx):
         "Loader": _rloc(ctx, runner.runtime.loader),
         "Server": _rloc(ctx, runner.runtime.server),
         "Payload": _rloc(ctx, ctx.file.payload),
-        "WrongArch": _rloc(ctx, ctx.file.wrong_arch),
     }))
     runfiles = ctx.runfiles(
         files = [
@@ -25,7 +24,6 @@ def _impl(ctx):
             runner.launcher.executable,
             ctx.executable._verify,
             ctx.file.payload,
-            ctx.file.wrong_arch,
         ] + ([ctx.file.companion] if ctx.file.companion else []),
         transitive_files = runner.runtime.files,
     ).merge_all([runner.runfiles, ctx.attr._verify[DefaultInfo].default_runfiles])
@@ -38,7 +36,6 @@ runtime_contract_test = rule(
         "payload_layout": attr.bool(),
         "companion": attr.label(allow_single_file = True),
         "payload": attr.label(allow_single_file = True, mandatory = True),
-        "wrong_arch": attr.label(allow_single_file = True, mandatory = True),
         "_verify": attr.label(default = "//tests:verify_build", executable = True, cfg = config.exec("test")),
     },
     exec_groups = {

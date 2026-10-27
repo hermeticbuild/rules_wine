@@ -19,8 +19,8 @@ bazel test //tests:argv_test --config=remote --noenable_runfiles
 These use independent Windows executables to check output generation, DLL loading,
 child processes, argument preservation, and generated/external data. The lifecycle
 test checks concurrent private
-prefixes, cancellation ownership, descendant cleanup, exit status, architecture
-rejection, and unchanged input files. The layout test creates real symlinks because
+prefixes, cancellation ownership, descendant cleanup, exit status, native Wine CPU
+rejection, malformed payloads, and unchanged input files. The layout test creates real symlinks because
 remote execution can materialize ordinary runfiles and hide local layout bugs.
 The argv regression passes arguments through the generated launcher and asserts
 exact records for spaces, empty strings, Unicode, literal dollar/location strings,
@@ -50,6 +50,7 @@ e2e/test_custom_archive.sh /absolute/path/to/wine-11.0-amd64-wow64.tar.xz SHA256
 e2e/test_starlark.sh
 e2e/test_extension.sh
 e2e/test_path_mapping.sh
+e2e/test_cpu_translation.sh
 ```
 
 The consumer exercises the public module setup, action helper and binary adapter.
@@ -158,12 +159,23 @@ For the override, set `type = "pkg"` and
 This verification does not update the pinned LLVM dependency's default SDK URL;
 downstream macOS builds need the override until that dependency is updated.
 
-The published macOS ARM64 archive runs independent ARM64 fixtures through Bazel
+The published macOS ARM64 archive runs independent ARM64 and amd64 fixtures through Bazel
 on macOS 26.5.2 with the SDK override above. The release manifest records SDK 26.5,
 deployment target 26.5 and publisher-tested OS 26.6.2 separately; exact-minimum
 26.5 execution is not proven.
 
 Fresh prefixes emit Wine's `virtual_alloc_first_teb` assertion. The same archive
-reproduces it without the supervisor; initialization and tested ARM64 programs
+reproduces it without the supervisor; initialization and tested ARM64/amd64 programs
 still succeed. Gatekeeper acceptance of quarantined downloads is unverified.
-Although the ARM64 archives bundle FEX, this revision retains same-CPU execution.
+The CPU-translation regression uses only the default extension registrations.
+It runs the checked-in amd64 PE and its child on native ARM64 Linux workers through
+both `windows_actions.run` and `windows_binary`. It checks output records and the
+actions' execution platforms, independently identifying the payload as an amd64 PE.
+Run `e2e/test_cpu_translation.sh` with `USE_BAZEL_VERSION=8.5.0` and `9.3.1`.
+Before removing the supervisor's payload CPU check, these actions fail with
+`payload PE machine does not match aarch64`.
+
+A downstream macOS ARM64 consumer with the SDK override above also executed the
+amd64 fixture and its child through both APIs using the default extension.
+The adapter was a native ARM64 Mach-O executable; both actions ran on the local
+ARM64 host. No Rosetta or custom Wine registration was used.

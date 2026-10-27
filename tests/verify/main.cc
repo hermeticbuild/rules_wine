@@ -57,7 +57,7 @@ std::string quote(const std::string &value) {
   return result + '"';
 }
 struct Config {
-  fs::path launcher, loader, server, payload, wrong_arch, companion;
+  fs::path launcher, loader, server, payload, companion;
   bool payload_layout = false;
 };
 std::string field(const wine::Json &json, const std::string &name) {
@@ -70,8 +70,8 @@ Config config(const std::string &data) {
   auto locate = [&](const char *name) {
     return root / fs::u8path(field(value, name));
   };
-  Config c{locate("Launcher"), locate("Loader"),    locate("Server"),
-           locate("Payload"),  locate("WrongArch"), locate("Companion")};
+  Config c{locate("Launcher"), locate("Loader"), locate("Server"),
+           locate("Payload"), locate("Companion")};
   c.payload_layout = value.at("PayloadLayout").as_bool();
   return c;
 }
@@ -268,11 +268,15 @@ void verify_lifecycle(const Config &c, const fs::path &dir) {
   cancel(second, prefix2);
   Process exit = start(c.payload, {"--exit", "37"});
   require(wait(exit) == 37, "exit-code contract: " + read(exit.log));
-  Process wrong_arch = start(c.wrong_arch, {});
-  require(wait(wrong_arch) == 125 &&
-              read(wrong_arch.log).find("machine does not match") !=
+  fs::path malformed_payload = dir / "malformed.exe";
+  std::string malformed_bytes(64, '\0');
+  malformed_bytes.replace(0, 2, "MZ");
+  write(malformed_payload, malformed_bytes);
+  Process malformed = start(malformed_payload, {});
+  require(wait(malformed) == 125 &&
+              read(malformed.log).find("not a Windows PE executable") !=
                   std::string::npos,
-          "wrong payload CPU rejection");
+          "malformed payload rejection");
   Config wrong_loader = c;
   fs::path wrong_loader_file = dir / "wrong-loader.elf";
   std::string wrong_loader_bytes(64, '\0');

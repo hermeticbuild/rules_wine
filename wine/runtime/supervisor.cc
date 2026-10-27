@@ -190,7 +190,7 @@ unsigned big32(const unsigned char *p) {
          (static_cast<unsigned>(p[2]) << 8) | p[3];
 }
 #endif
-void validate_pe(const std::string &name, const std::string &arch) {
+void validate_pe(const std::string &name) {
   std::ifstream file(path(name), std::ios::binary);
   std::array<unsigned char, 64> header{};
   if (!file.read(reinterpret_cast<char *>(header.data()), header.size()) ||
@@ -198,11 +198,10 @@ void validate_pe(const std::string &name, const std::string &arch) {
     throw std::runtime_error("payload is not a Windows PE executable");
   }
   file.seekg(little32(header.data() + 60));
-  std::array<unsigned char, 6> pe{};
+  std::array<unsigned char, 4> pe{};
   if (!file.read(reinterpret_cast<char *>(pe.data()), pe.size()) ||
-      pe[0] != 'P' || pe[1] != 'E' || pe[2] != 0 || pe[3] != 0 ||
-      little16(pe.data() + 4) != (arch == "aarch64" ? 0xaa64 : 0x8664)) {
-    throw std::runtime_error("payload PE machine does not match " + arch);
+      pe[0] != 'P' || pe[1] != 'E' || pe[2] != 0 || pe[3] != 0) {
+    throw std::runtime_error("payload is not a Windows PE executable");
   }
 }
 void validate_native(const std::string &name, const std::string &arch) {
@@ -320,9 +319,6 @@ struct Scope {
 
 int invoke(Config c, std::vector<std::string> payload_args,
            const std::string &self) {
-  if (c.arch != "x86_64" && c.arch != "aarch64") {
-    throw std::runtime_error("unsupported payload architecture " + c.arch);
-  }
 #if defined(__x86_64__)
   const std::string cpu = "x86_64";
 #elif defined(__aarch64__)
@@ -331,7 +327,8 @@ int invoke(Config c, std::vector<std::string> payload_args,
   const std::string cpu = "unsupported";
 #endif
   if (cpu != c.arch) {
-    throw std::runtime_error("CPU translation is unsupported");
+    throw std::runtime_error(
+        "Wine configuration CPU does not match supervisor " + cpu);
   }
   RunfilesContext runfiles(self);
   auto resolve = [&](const std::string &name, bool canonicalize) {
@@ -349,7 +346,8 @@ int invoke(Config c, std::vector<std::string> payload_args,
   c.payload = resolve(c.payload, false);
   c.loader = resolve(c.loader, true);
   c.server = resolve(c.server, true);
-  validate_pe(c.payload, c.arch);
+  // Wine owns guest CPU support, including any bundled CPU translator.
+  validate_pe(c.payload);
   for (auto &arg : payload_args) {
     arg = convert(arg);
   }

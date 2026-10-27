@@ -1,7 +1,7 @@
 # rules_wine
 
 Run Windows executables as Bazel actions and executable tools. Wine runs
-same-CPU payloads on Linux or macOS; Windows actions execute the payload directly.
+payloads on Linux or macOS; Windows actions execute the payload directly.
 The rules do not own your compiler, SDK, language, or final output platform.
 
 Bazel 8.5.0 and 9.3.1 are exercised. Initial runtime status:
@@ -9,14 +9,17 @@ Bazel 8.5.0 and 9.3.1 are exercised. Initial runtime status:
 | Executor / Windows payload | Acquisition | Validation |
 | --- | --- | --- |
 | Linux x86_64 / x86_64 | Pinned Wine 11.20.1 default | Remote actions, adapters and lifecycle pass |
-| Linux ARM64 / ARM64 | Pinned Wine 11.20.1 default | Native remote execution verified |
+| Linux ARM64 / ARM64 and x86_64 | Pinned Wine 11.20.1 default | Native and FEX-translated remote execution verified |
 | Windows x86_64 / x86_64 | No Wine required | Direct-action graph verified; execution untested |
 | Windows ARM64 / ARM64 | No Wine required | Direct-action graph verified; execution untested |
 | macOS Intel / x86_64 | User-supplied native archive | Supervisor cross-compiled with Apple SDK 26.5 override; execution untested |
-| macOS ARM64 / ARM64 | Pinned Wine 11.20.1 default | Native execution with Apple SDK 26.5 override; initialization caveat below |
+| macOS ARM64 / ARM64 and x86_64 | Pinned Wine 11.20.1 default | Native and FEX-translated execution with Apple SDK 26.5 override; initialization caveat below |
 
-Execution remains same-CPU: no Rosetta, QEMU, i386 payloads or cross-CPU fallback.
-The ARM64 archives bundle FEX, but these rules do not yet expose cross-CPU execution.
+The default ARM64 archives bundle FEX and can also run amd64 Windows executables.
+No extra registration or guest-CPU attribute is needed: the selected Wine runtime
+decides which payload CPUs it supports. Unsupported payloads fail inside Wine.
+Linux amd64 → Windows ARM64 is unsupported by the default runtime. There is no
+Rosetta or QEMU fallback; i386 execution is outside the tested contract.
 
 ## Setup
 
@@ -63,11 +66,10 @@ load("@rules_wine//wine:windows_binary.bzl", "windows_binary")
 windows_binary(
     name = "generator",
     binary = "generator.exe",
-    target_compatible_with = ["@platforms//cpu:x86_64"],  # This prebuilt is x86_64.
 )
 ```
 
-`windows_binary` exposes a Windows executable through Wine on same-CPU Linux or
+`windows_binary` exposes a Windows executable through Wine on Linux or
 macOS. Use it with `bazel run //:generator -- ...` or as an executable dependency
 of a generic rule. It is currently scoped to non-Windows execution; use
 `windows_actions.run` for actions that also need native Windows execution.
@@ -76,7 +78,8 @@ of a generic rule. It is currently scoped to non-Windows execution; use
 inputs, optionally set `target_platform = "//platforms:windows_x86_64"` to
 transition only the payload and its dependencies. That platform must declare
 Windows and the same CPU as the resolved adapter toolchain; your compiler/toolchain
-must support it.
+must support it. This source-compilation restriction is unchanged; the cross-CPU
+support described here applies to already-built executables.
 
 The adapter follows its own target platform: the host by default, or the
 consumer's selected executor when its attribute uses `cfg = "exec"`. For a named
@@ -85,9 +88,12 @@ on that same platform. Registering remote platforms alone does not make a foreig
 adapter executable locally with `bazel run`.
 
 There is no `arch` attribute: Bazel selects the adapter implementation from platform
-constraints. For a prebuilt supporting only one CPU, declare that restriction with
-`target_compatible_with`, as above. Bazel cannot infer a PE file's CPU during
-toolchain resolution; the supervisor still checks its actual CPU before execution.
+constraints. These describe the native adapter and Wine, not the PE payload.
+For an amd64 prebuilt, the default ARM64 Wine runtime can translate its CPU.
+To require an amd64 adapter instead, set
+`target_compatible_with = ["@platforms//cpu:x86_64"]`; a consumer using
+`cfg = "exec"` must then select a compatible executor. Bazel does not infer a
+PE file's CPU or choose another worker after Wine rejects a payload.
 
 Callers provide invocation arguments and environment. There are no wrapper
 `arguments`, `env`, or `data` attributes and no location-expression expansion.
@@ -217,7 +223,7 @@ manifests or output contents.
 `windows_binary` is one rule requiring `adapter_toolchain_type`. Each implementation
 constrains both executor and target OS/CPU; the resolved toolchain supplies the
 architecture. This uses ordinary toolchain resolution on Bazel 8 and 9. Action helpers use
-the runner type declared by the consuming rule; it selects a same-CPU executor
+the runner type declared by the consuming rule; it selects native Wine for the executor
 without restricting the final output platform.
 
 ## Custom distributions and toolchains
@@ -281,7 +287,7 @@ Keep the complete installation layout.
 
 The extension supplies pinned Linux x86-64, Linux ARM64 and macOS ARM64 Wine,
 plus native Windows x86-64/ARM64: five runners and three adapters. Each registration
-retains the existing same-CPU contract. It has no tags and does not combine custom
+requires Wine itself to match its executor CPU. It has no tags and does not combine custom
 archives from transitive modules. Intel macOS requires a custom runtime. For custom-only
 setup, omit the extension and register only your own toolchains. Adding a
 `bazel_dep` alone does not register the defaults.

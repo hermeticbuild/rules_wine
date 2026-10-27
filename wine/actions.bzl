@@ -25,8 +25,9 @@ def _resolve(ctx, *, exec_group = "default"):
 
     Returns:
         Context for run/add_path, containing WindowsRunnerInfo as windows and the
-        action's exec_group. The payload must match windows.arch; constrain the
-        execution group for fixed-CPU prebuilts.
+        action's exec_group. windows.arch describes the executor CPU; Wine owns
+        payload CPU support. Constrain the execution group to require a
+        particular executor, for example to avoid CPU translation.
     """
     toolchains = ctx.toolchains if exec_group == "default" else ctx.exec_groups[exec_group].toolchains
     return struct(
