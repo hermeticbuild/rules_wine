@@ -58,9 +58,9 @@ archive through `http_archive`; supplying an incorrect checksum must fail fetchi
 Keep fixture compilers and test helpers out of production dependency paths.
 The Starlark and extension scripts retain their temporary workspaces for
 inspection. Each accepts an optional ruleset checkout path. The extension checks
-automatic default registration, per-platform archive overrides, identical
-dependency declarations, root precedence, conflicts, and dev-only usage. Its
-no-tag setup fails against `d6b9e95`, which required a `.toolchains(...)` call.
+pinned defaults, shared extension usage, rejection of removed tags, native Windows
+runners, and switching between ordinary and dev-only usage. The custom archive
+consumer registers public toolchains without loading the default extension.
 The Starlark script checks distinct Aa/BB actions, aliases under `select()`, executable sidecar outputs,
 an external executable's data and expected payload-platform analysis errors.
 It also inspects the same adapter under x86_64 and ARM64 target platforms,
