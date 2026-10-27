@@ -8,16 +8,19 @@ _RELEASE = "https://github.com/hermeticbuild/wine-prebuilt/releases/download/" +
 _DISTRIBUTIONS = {
     "linux_x86_64": struct(
         platform = "linux-amd64",
+        guests = ["x86_64"],
         sha256 = "ce069b8ea2c8e301890fd96d58cebe3945a4a474776804d1d876692fa20cb49d",
         requirements = "Linux glibc 2.17 or newer and an available UTF-8 locale; see the release manifest and DISTRIBUTION.md.",
     ),
     "linux_aarch64": struct(
         platform = "linux-arm64",
+        guests = ["aarch64", "x86_64"],
         sha256 = "878ff847e6700b17eddbdc9b4c1bdd29965ddc3f26c0f550cc8347150de9f2a0",
         requirements = "Linux glibc 2.17 or newer and an available UTF-8 locale; bundled FEX for amd64 guests. See the release manifest and DISTRIBUTION.md.",
     ),
     "osx_aarch64": struct(
         platform = "macos-arm64",
+        guests = ["aarch64", "x86_64"],
         sha256 = "f59e73741f83558fcbef00bc4efcbc760f9e69973cfdf1eff96e9aaafbeedf81",
         requirements = "macOS ARM64, deployment target 26.5; bundled FEX for amd64 guests. Unsigned command-line runtime; see the release manifest and DISTRIBUTION.md.",
     ),
@@ -46,6 +49,7 @@ def _impl(ctx):
             "repository": repo,
             "identity": "hermeticbuild Wine {} {}".format(_VERSION, distribution.platform),
             "requirements": distribution.requirements,
+            "supported_guest_cpus": ["@platforms//cpu:" + cpu for cpu in distribution.guests],
         }
     registration_repository(name = "wine_toolchains", distributions = json.encode(registrations))
 

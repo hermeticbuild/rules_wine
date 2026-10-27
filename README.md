@@ -9,17 +9,17 @@ Bazel 8.5.0 and 9.3.1 are exercised. Initial runtime status:
 | Executor / Windows payload | Acquisition | Validation |
 | --- | --- | --- |
 | Linux x86_64 / x86_64 | Pinned Wine 11.20.1 default | Remote actions, adapters and lifecycle pass |
-| Linux ARM64 / ARM64 | Pinned Wine 11.20.1 default | Native remote execution verified |
+| Linux ARM64 / ARM64, x86_64 | Pinned Wine 11.20.1 default | Native Wine / bundled FEX execution verified |
 | Windows x86_64 / x86_64 | No Wine required | Direct-action graph verified; execution untested |
 | Windows ARM64 / ARM64 | No Wine required | Direct-action graph verified; execution untested |
 | macOS Intel / x86_64 | User-supplied native archive | Supervisor cross-compiled with Apple SDK 26.5 override; execution untested |
-| macOS ARM64 / ARM64 | Pinned Wine 11.20.1 default | Native execution with Apple SDK 26.5 override; initialization caveat below |
+| macOS ARM64 / ARM64, x86_64 | Pinned Wine 11.20.1 default | Native Wine / bundled FEX with Apple SDK 26.5 override; initialization caveat below |
 
 Supported Windows guests are x86_64 and ARM64 only. A custom native Wine runtime
 may support both, for example through bundled FEX. No Rosetta or QEMU integration;
 i386 payloads are rejected through Wine. Capability declarations do not select a
-new executor. Default registrations remain same-CPU until their guest capabilities
-are explicitly enabled.
+new executor. ARM64 Wine defaults support ARM64 and x86_64 guests; Linux x86_64
+and native Windows defaults remain same-CPU.
 
 ## Setup
 
@@ -319,8 +319,8 @@ before launch (no Rosetta fallback). Shell-script Wine launchers are not accepte
 Keep the complete installation layout.
 
 The extension supplies pinned Linux x86-64, Linux ARM64 and macOS ARM64 Wine,
-plus native Windows x86-64/ARM64: five runners and three adapters. Each registration
-retains the existing same-CPU contract. It has no tags and does not combine custom
+plus native Windows x86-64/ARM64: five runners and three adapters. Wine registrations
+declare the supported guests listed above. It has no tags and does not combine custom
 archives from transitive modules. Intel macOS requires a custom runtime. For custom-only
 setup, omit the extension and register only your own toolchains. Adding a
 `bazel_dep` alone does not register the defaults.
