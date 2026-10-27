@@ -127,9 +127,13 @@ also set `expand_directories = False`.
 
 ## Other rule authors
 
-For a standalone Windows x86_64 prebuilt, constrain the action's execution group
-to x86_64 and resolve its runner once. The final output may target a different
-OS or CPU.
+To run a Windows x86_64 prebuilt without CPU translation, constrain the action's
+execution group to x86_64 and resolve its runner once, as below. For the default
+behavior, declare `toolchains = [windows_actions.toolchain_type]` on the rule,
+use `cfg = "exec"` on the tool attribute and `windows_actions.resolve(ctx)`;
+no named group or CPU constraint is needed. The default ARM64 Wine runtimes can
+then run the x86_64 prebuilt through FEX. The final output may target a different
+OS or CPU in either case.
 
 ```starlark
 load("@rules_wine//wine:actions.bzl", "windows_actions")
@@ -177,8 +181,10 @@ context binds the selected `WindowsRunnerInfo` (available as `runner.windows`)
 and execution group; pass that same context to `run` and `add_path`. No architecture
 or group is repeated on those calls. `resolve(ctx)` uses the default group.
 Resolution chooses the runner for the executor, independently of the rule's
-target platform. A fixed-CPU payload requires an execution constraint; its
-`target_compatible_with` does not select the consumer's executor.
+target platform. A fixed-CPU payload needs a compatible runtime, not necessarily
+a matching executor CPU. Use an execution constraint when you require a specific
+executor, for example to avoid translation or accommodate a single-CPU Wine build.
+The payload's `target_compatible_with` does not select the consumer's executor.
 
 The helper does not compile or transition the payload. The example accepts a
 prebuilt `.exe`: `config.exec("windows")` means the group named `windows`, not
@@ -304,8 +310,10 @@ Wine owns lookup of its builtin programs; no distribution-specific DLL directory
 is assumed.
 
 Define `windows_runner_toolchain` from
-`@rules_wine//wine:toolchain.bzl`. A Wine implementation needs `arch`, `backend`,
-`launcher`, `loader`, `server`, `files`, `identity`, `requirements`, and `env`; it
+`@rules_wine//wine:toolchain.bzl`. A Wine implementation requires `arch`,
+`backend = "wine"`, `launcher`, `loader` and `server`. Supply `files` for the
+complete distribution; `identity` and `requirements` describe its provenance and
+host requirements. `env` defaults to an empty dictionary. The implementation
 can serve runner and binary adapter registrations. Native Windows uses a direct
 action runner without `launcher` or Wine files.
 Wine implementations can register against `runner_toolchain_type` and

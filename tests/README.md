@@ -15,6 +15,18 @@ It tests amd64 on Linux amd64; ARM64 and amd64 on Linux/macOS ARM64; and the
 native guest CPU on Windows. Wine platforms exercise both `windows_actions.run`
 and `windows_binary`; Windows exercises the direct-action backend.
 
+On Windows ARM64, Git Bash and process architecture APIs can report x86_64
+because the shell itself runs under emulation. The script reads the hardware CPU
+from `Win32_Processor.Architecture` through PowerShell, then independently checks
+Bazel's host platform. Keep these checks separate: detecting the shell's CPU would
+select the wrong fixture, while trusting only Bazel would not verify that Bazel
+matches the runner.
+
+The [native CI run](https://github.com/hermeticbuild/rules_wine/actions/runs/40558541873)
+passed all 12 jobs at commit `4f19990`: ten runtime jobs (five executors × two
+Bazel versions) and two Linux regression jobs. The checked-in
+[workflow](../.github/workflows/test.yml) defines the runner matrix.
+
 Each combination checks generated input/output paths with spaces and Unicode,
 arguments, environment and child execution. Linux/macOS run with path mapping off
 and on. Windows runs without mapping: Bazel 8/9 have no local Windows sandbox
@@ -26,7 +38,8 @@ No remote executor or runtime cache is used. Logs, output records and action gra
 remain in the printed temporary directory and are uploaded by CI on failure.
 
 The separate Linux regression jobs retain the detailed lifecycle, runfiles,
-path-mapping collision, Starlark and extension checks. They also run locally.
+path-mapping collision, Starlark, extension and caller-supplied archive checks.
+They also run locally.
 For optional remote investigation, root-workspace Bazel commands accept
 `--config=remote`; BuildBuddy authentication belongs in your user config.
 
