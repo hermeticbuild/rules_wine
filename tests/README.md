@@ -151,7 +151,7 @@ cross-compilation check covers those four OS/CPU combinations.
 
 The public Wine 11.20.1 archives are pinned by SHA-256 and preserve their complete
 installation layout. Linux distributions declare glibc 2.17 plus an available
-UTF-8 locale; these rules' native x86_64 and ARM64 remote tests use Ubuntu 24.04.
+UTF-8 locale; these rules' native x86_64 and ARM64 tests use Ubuntu 24.04.
 Tests on newer workers do not re-establish the declared minimum libc version.
 
 Exercise both Linux defaults on native workers with:
@@ -161,9 +161,11 @@ bazel build --config=remote --extra_execution_platforms=//platforms:remote_linux
 jq -e '.child == "child-ok"' bazel-bin/tests/generate.json bazel-bin/tests/generate_arm64.json
 ```
 
-Native Windows and Intel macOS execution remain untested. Windows
-action graphs verify selection and inputs, not runtime behavior. Native local Linux
-sandbox execution remains unverified.
+The GitHub matrix verifies local Linux sandbox execution and native Windows
+x86_64/ARM64 direct actions. Windows checks include arguments, environment,
+generated inputs, child execution and action graphs without Wine dependencies.
+Intel macOS execution remains untested. Windows path mapping still requires a
+suitable remote executor and remains unverified.
 
 The source-built C++ runfiles fixture runs through both a direct
 `FilesToRunProvider` action and `windows_binary` as an action tool. Both verify

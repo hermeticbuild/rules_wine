@@ -8,16 +8,16 @@ The [native E2E suite](tests/README.md) exercises the default toolchains on the
 five required executor platforms with Bazel 8 and 9. Run `e2e/test_runtime.sh`
 locally; GitHub Actions runs the same consumer and separate Linux regression tests.
 
-Bazel 8.5.0 and 9.3.1 are exercised. Initial runtime status:
+Bazel 8.5.0 and 9.3.1 are exercised. Runtime coverage:
 
 | Executor / Windows payload | Acquisition | Validation |
 | --- | --- | --- |
-| Linux x86_64 / x86_64 | Pinned Wine 11.20.1 default | Remote actions, adapters and lifecycle pass |
-| Linux ARM64 / ARM64 and x86_64 | Pinned Wine 11.20.1 default | Native and FEX-translated remote execution verified |
-| Windows x86_64 / x86_64 | No Wine required | Direct-action graph verified; execution untested |
-| Windows ARM64 / ARM64 | No Wine required | Direct-action graph verified; execution untested |
+| Linux x86_64 / x86_64 | Pinned Wine 11.20.1 default | Actions and adapters pass on native GitHub runners |
+| Linux ARM64 / ARM64 and x86_64 | Pinned Wine 11.20.1 default | Native and FEX-translated actions and adapters pass on native GitHub runners |
+| Windows x86_64 / x86_64 | No Wine required | Direct actions pass on native GitHub runners |
+| Windows ARM64 / ARM64 | No Wine required | Direct actions pass on native GitHub runners |
 | macOS Intel / x86_64 | User-supplied native archive | Supervisor cross-compiled with Apple SDK 26.5 override; execution untested |
-| macOS ARM64 / ARM64 and x86_64 | Pinned Wine 11.20.1 default | Native and FEX-translated execution with Apple SDK 26.5 override; initialization caveat below |
+| macOS ARM64 / ARM64 and x86_64 | Pinned Wine 11.20.1 default | Native and FEX-translated actions and adapters pass on native GitHub runners with Apple SDK 26.5 override; initialization caveat below |
 
 The default ARM64 archives bundle FEX and can also run amd64 Windows executables.
 No extra registration or guest-CPU attribute is needed: the selected Wine runtime
@@ -345,5 +345,7 @@ which are not consumer dependencies.
 
 The published macOS runtime prints a `virtual_alloc_first_teb` assertion during
 fresh prefix initialization. This also occurs with bare Wine; initialization and
-independently compiled ARM64 fixtures still return success. Native Windows runtime
-execution and Intel macOS execution remain unverified.
+independently compiled ARM64 fixtures still return success. Intel macOS execution
+remains unverified. Local Windows actions run without path mapping: Bazel 8/9 have
+no local Windows sandbox strategy supporting mapped actions. Mapping on a Windows
+remote executor remains unverified.
