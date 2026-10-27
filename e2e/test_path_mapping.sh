@@ -12,10 +12,10 @@ trap 'bazel_cmd shutdown >/dev/null 2>&1' EXIT
 for mode in strip off; do
   bazel_cmd test //tests:argv_test //tests:mapped_paths //tests:mapping_collision \
     //tests:param_file //tests:distinct_actions //tests:additional_tools \
-    --config=remote --lockfile_mode=off --experimental_output_paths="$mode" \
+    --lockfile_mode=off --experimental_output_paths="$mode" \
     '--modify_execution_info=WindowsRun|AdapterTool|RunfilesFixture|RunfilesAdapterFixture=+supports-path-mapping' \
     --symlink_prefix="$scratch/bazel-" > "$scratch/$mode.log" 2>&1
-  bin=$(bazel_cmd info bazel-bin --config=remote --lockfile_mode=off 2>/dev/null)
+  bin=$(bazel_cmd info bazel-bin --lockfile_mode=off 2>/dev/null)
   cp "$bin/tests/mapped_paths/result café {output}.json" "$scratch/$mode.json"
   cp "$bin/tests/mapping_collision/result café {output}.json" "$scratch/$mode-collision.json"
   jq -e --arg mode "$mode" '
@@ -41,7 +41,7 @@ for mode in strip off; do
   done
 done
 bazel_cmd aquery '//tests:mapped_paths + //tests:mapping_collision' \
-  --config=remote --lockfile_mode=off --include_param_files --output=jsonproto \
+  --lockfile_mode=off --include_param_files --output=jsonproto \
   > "$scratch/actions.json" 2> "$scratch/actions.log"
 # aquery expands Starlark Args inline, even when execution uses parameter files.
 jq -e '

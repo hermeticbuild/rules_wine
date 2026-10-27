@@ -1,0 +1,65 @@
+name: Test
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    name: ${{ matrix.platform }} / Bazel ${{ matrix.bazel }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        bazel: ['8.5.0', '9.3.1']
+        platform: [linux-amd64, linux-arm64, macos-arm64, windows-amd64, windows-arm64, regressions]
+        include:
+          - platform: linux-amd64
+            runner: ubuntu-24.04
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+          - platform: macos-arm64
+            runner: macos-26
+          - platform: windows-amd64
+            runner: windows-2025
+          - platform: windows-arm64
+            runner: windows-11-arm
+          - platform: regressions
+            runner: ubuntu-24.04
+    env:
+      USE_BAZEL_VERSION: ${{ matrix.bazel }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Install native Bazel
+        run: bash .github/install-bazel.sh
+      - name: Execute default runtimes through the public APIs
+        if: matrix.platform != 'regressions'
+        run: bash e2e/test_runtime.sh
+      - name: Lifecycle, runfiles and argument regressions
+        if: matrix.platform == 'regressions'
+        run: bazel test //tests:integration --lockfile_mode=off
+      - name: Path mapping regressions
+        if: matrix.platform == 'regressions'
+        run: bash e2e/test_path_mapping.sh
+      - name: Starlark and module extension contracts
+        if: matrix.platform == 'regressions'
+        run: |
+          bash e2e/test_starlark.sh
+          bash e2e/test_extension.sh
+      - name: Preserve failure logs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: logs-${{ matrix.platform }}-${{ matrix.bazel }}
+          path: |
+            ${{ runner.temp }}/rules-wine-*/*.log
+            ${{ runner.temp }}/rules-wine-*/*.json
+            /tmp/rules-wine-*/*.log
+            /tmp/rules-wine-*/*.json
+            bazel-testlogs/**/test.log

@@ -1,7 +1,7 @@
 #!/bin/sh
 # External-consumer acquisition verification, validating a caller-supplied checksum.
 set -eu
-archive=${1:?usage: e2e/test_custom_archive.sh archive.tar.xz sha256}
+archive=${1:?usage: e2e/test_custom_archive.sh archive.tar.zst sha256 [strip_prefix]}
 checksum=${2:?archive sha256 required}
 root=$(cd "$(dirname "$0")/.." && pwd)
 scratch=$(mktemp -d /tmp/rules-wine-custom-consumer.XXXXXX)
@@ -15,7 +15,7 @@ http_archive(
     name = "company_wine",
     urls = ["file://$archive"],
     sha256 = "$checksum",
-    strip_prefix = "wine-11.0-amd64-wow64",
+    strip_prefix = "${3:-}",
     build_file_content = """
 package(default_visibility = ["//visibility:public"])
 filegroup(name = "loader", srcs = ["bin/wine"])
@@ -37,7 +37,7 @@ windows_runner_toolchain(
     loader = "@company_wine//:loader",
     server = "@company_wine//:server",
     files = "@company_wine//:files",
-    identity = "Local Kron4ek Wine 11.0 archive",
+    identity = "Caller-supplied Wine archive",
     requirements = "Ubuntu 24.04 console baseline",
 )
 
@@ -62,6 +62,6 @@ cp "$root/.bazelversion" "$scratch/.bazelversion"
 printf '%s\n' "Verification consumer: $scratch"
 cd "$scratch"
 trap 'bazel --output_base="$scratch/output" shutdown >/dev/null 2>&1' EXIT
-bazel --output_base="$scratch/output" build //:generate --config=remote
-jq -e '.args | index("external-consumer") != null' bazel-bin/external.json
-jq -e '.args | index("adapter-consumer") != null' bazel-bin/adapter.json
+bazel --output_base="$scratch/output" build //:action_x86_64 //:adapter_x86_64 --lockfile_mode=off
+jq -e '.child == "child-ok" and .args[-1] == "declared input café"' \
+  'bazel-bin/action_x86_64/result café.json' 'bazel-bin/adapter_x86_64/result café.json'

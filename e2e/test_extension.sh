@@ -17,7 +17,7 @@ root_module() {
   printf 'module(name = "extension_checks")\nbazel_dep(name = "rules_wine", version = "0.1.0")\nlocal_path_override(module_name = "rules_wine", path = "%s")\nbazel_dep(name = "first", version = "0.1.0")\nbazel_dep(name = "second", version = "0.1.0")\nlocal_path_override(module_name = "first", path = "first")\nlocal_path_override(module_name = "second", path = "second")\nwine = use_extension("@rules_wine//wine/extension:wine.bzl", "wine"%s)\n%s\nuse_repo(wine, "wine_toolchains")\n' "$rules" "${2:-}" "$1" > "$scratch/MODULE.bazel"
 }
 query() {
-  bazel cquery '@wine_toolchains//:all' --config=remote --extra_execution_platforms=@rules_wine//platforms:remote_linux_x86_64 --output=starlark --starlark:expr='str(target.label) + " " + str(providers(target))' > "$1" 2> "$1.log"
+  bazel cquery '@wine_toolchains//:all' --lockfile_mode=off --output=starlark --starlark:expr='str(target.label) + " " + str(providers(target))' > "$1" 2> "$1.log"
 }
 reject() {
   if query "$1"; then

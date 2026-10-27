@@ -1,14 +1,36 @@
 load("@rules_wine//wine:windows_binary.bzl", "windows_binary")
 load(":consumer.bzl", "consumer")
 
-windows_binary(
-    name = "adapter",
-    binary = "@rules_wine//tests:fixture/fixture_x86_64.exe",
-    target_compatible_with = ["@platforms//cpu:x86_64"],
-)
+[
+    windows_binary(
+        name = "binary_" + cpu,
+        binary = "@rules_wine//tests:fixture/fixture_" + cpu + ".exe",
+    )
+    for cpu in [
+        "x86_64",
+        "aarch64",
+    ]
+]
 
-consumer(
-    name = "generate",
-    adapter = "adapter",
-    binary = "@rules_wine//tests:fixture/fixture_x86_64.exe",
-)
+[
+    consumer(
+        name = "action_" + cpu,
+        binary = "@rules_wine//tests:fixture/fixture_" + cpu + ".exe",
+    )
+    for cpu in [
+        "x86_64",
+        "aarch64",
+    ]
+]
+
+[
+    consumer(
+        name = "adapter_" + cpu,
+        adapter = "binary_" + cpu,
+        binary = "@rules_wine//tests:fixture/fixture_" + cpu + ".exe",
+    )
+    for cpu in [
+        "x86_64",
+        "aarch64",
+    ]
+]

@@ -26,14 +26,6 @@ adapter_action = rule(
     exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
 )
 
-native_adapter_action = rule(
-    implementation = _impl,
-    attrs = {
-        "tool": attr.label(executable = True, cfg = "exec", mandatory = True),
-        "arguments": attr.string_list(),
-    },
-)
-
 def _runfiles_adapter_impl(ctx):
     output = ctx.actions.declare_file(ctx.label.name + ".json")
     args = ctx.actions.args()
