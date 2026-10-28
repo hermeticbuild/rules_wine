@@ -52,15 +52,19 @@ wine_message_compile(
 wine_resource_compile(
     name = "resources",
     src = "resources.rc",
-    out = "resources.res",
-    hdrs = ["generated/resource_ids.h"],
-    data = ["generated/payload.txt"],
+    out = "nested/resources.res",
+    hdrs = ["generated/sub/resource_ids.h"],
+    data = ["generated/assets/payload.txt"],
     defines = ["EXPECTED_DEFINE=37"],
+    includes = [
+        "",
+        "generated",
+    ],
 )
 
 wine_idl_compile(
     name = "example",
-    src = "generated/example.idl",
+    src = "generated/sub/example.idl",
     header = "example.h",
     proxy = "example_p.c",
 )
@@ -68,9 +72,16 @@ wine_idl_compile(
 wine_idl_compile(
     name = "interfaces",
     src = "interfaces.idl",
-    header = "interfaces.h",
+    header = "nested/interfaces.h",
     iid = "interfaces_i.c",
-    imports = ["generated/example.idl"],
+    imports = [
+        "generated/sub/example.idl",
+        "generated/sub/resource_ids.h",
+    ],
+    includes = [
+        ".",
+        "generated",
+    ],
     proxy = "interfaces_p.c",
     typelib = "interfaces.tlb",
 )
@@ -102,8 +113,9 @@ wine_resource_compile(
     name = "missing_asset",
     src = "resources.rc",
     out = "missing_asset.res",
-    hdrs = ["generated/resource_ids.h"],
+    hdrs = ["generated/sub/resource_ids.h"],
     defines = ["EXPECTED_DEFINE=37"],
+    includes = ["generated"],
     tags = ["manual"],
 )
 
@@ -111,6 +123,8 @@ wine_idl_compile(
     name = "missing_import",
     src = "interfaces.idl",
     header = "missing_import.h",
+    imports = ["generated/sub/resource_ids.h"],
+    includes = ["generated"],
     tags = ["manual"],
 )
 
@@ -118,5 +132,30 @@ wine_message_compile(
     name = "bad_message",
     src = "bad.mc",
     out = "bad.rc",
+    tags = ["manual"],
+)
+
+wine_idl_compile(
+    name = "qualified_import",
+    src = "qualified_import.idl",
+    header = "qualified_import.h",
+    imports = ["generated/sub/example.idl"],
+    includes = ["generated"],
+    tags = ["manual"],
+)
+
+wine_resource_compile(
+    name = "absolute_include",
+    src = "resources.rc",
+    out = "absolute.res",
+    includes = ["/usr/include"],
+    tags = ["manual"],
+)
+
+wine_resource_compile(
+    name = "absolute_windows_include",
+    src = "resources.rc",
+    out = "absolute_windows.res",
+    includes = ["C:/SDK"],
     tags = ["manual"],
 )

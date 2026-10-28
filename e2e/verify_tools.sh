@@ -33,8 +33,8 @@ resources "$bin/inline_messages.res" > "$scratch/inline.txt"
 cmp "$scratch/messages.txt" "$scratch/inline.txt"
 # One message block, ID 1001, UTF-16 table entry, complete message and terminator.
 grep -qx '11:1:01000000e9030000e90300001000000034000100480065006c006c006f002000660072006f006d002000570069006e006500200074006f006f006c0073002e000a000000' "$scratch/messages.txt"
-resources "$bin/resources.res" > "$scratch/resources.txt"
-grep -qx "10:43:$(hex "$bin/generated/payload.txt")" "$scratch/resources.txt"
+resources "$bin/nested/resources.res" > "$scratch/resources.txt"
+grep -qx "10:43:$(hex "$bin/generated/assets/payload.txt")" "$scratch/resources.txt"
 # STRINGTABLE block 3 contains string ID 42 (Wine tools: café) at index 10.
 grep -qx '6:3:00000000000000000000000000000000000000001000570069006e006500200074006f006f006c0073003a002000630061006600e90000000000000000000000' "$scratch/resources.txt"
 grep -q 'IExampleVtbl' "$bin/example.h"

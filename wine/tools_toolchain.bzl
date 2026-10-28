@@ -3,9 +3,9 @@
 WineToolsInfo = provider(
     "Native wmc, wrc and widl with their declared compiler input data.",
     fields = {
-        "wmc": "Native message compiler executable File.",
-        "wrc": "Native resource compiler executable File.",
-        "widl": "Native IDL compiler executable File.",
+        "wmc": "Native message compiler FilesToRunProvider, preserving executable runfiles.",
+        "wrc": "Native resource compiler FilesToRunProvider, preserving executable runfiles.",
+        "widl": "Native IDL compiler FilesToRunProvider, preserving executable runfiles.",
         "files": "Complete tools distribution depset, preserving installation layout.",
         "include": "A header File whose parent is the bundled include directory.",
         "nls": "locale.nls File, or None for native Windows tools.",
@@ -15,9 +15,9 @@ WineToolsInfo = provider(
 
 def _impl(ctx):
     info = WineToolsInfo(
-        wmc = ctx.executable.wmc,
-        wrc = ctx.executable.wrc,
-        widl = ctx.executable.widl,
+        wmc = ctx.attr.wmc[DefaultInfo].files_to_run,
+        wrc = ctx.attr.wrc[DefaultInfo].files_to_run,
+        widl = ctx.attr.widl[DefaultInfo].files_to_run,
         files = depset(
             [ctx.executable.wmc, ctx.executable.wrc, ctx.executable.widl, ctx.file.include, ctx.file.x86_64_typelib, ctx.file.aarch64_typelib] + ([ctx.file.nls] if ctx.file.nls else []),
             transitive = [ctx.attr.files[DefaultInfo].files],

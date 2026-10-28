@@ -64,6 +64,7 @@ jobs:
         run: |
           bash e2e/test_starlark.sh
           bash e2e/test_extension.sh
+          bash e2e/test_tools_external.sh
       - name: Caller-supplied archive through public toolchains
         if: matrix.platform == 'regressions'
         run: |

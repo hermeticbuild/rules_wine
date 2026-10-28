@@ -235,6 +235,11 @@ output ABIs and the action graph. Unix also checks undeclared imports/assets fai
 under sandboxing and compares mapped/unmapped actions. Native Windows mapping
 and undeclared-file isolation require a remote sandbox and are not tested locally.
 
+`bash e2e/test_tools_external.sh` repeats generation from an external repository,
+including package-relative source/generated include roots and nested outputs.
+`//tests:argv_test` also checks a custom native compiler's ordinary and alias
+runfiles through `wine_tools_toolchain`.
+
 The development-only `//tests:generated_rpc` target compiles generated headers
 and C stubs using LLVM's Windows SDK. ARM64 needs a fixture-only `__RPC_WIN64__`
 definition because the current MinGW `rpc.h` omits ARM64 from that macro's test.

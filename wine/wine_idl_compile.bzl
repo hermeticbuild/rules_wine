@@ -21,7 +21,7 @@ def _impl(ctx):
         outputs.append(output)
         args = ctx.actions.args()
         args.add_all(["-b", cpu + "-w64-mingw32", "-Oif", flag])
-        include_args(args, tools, inputs)
+        include_args(ctx, args, tools, inputs, output)
         typelib_args(args, [file for file in ctx.files.imports if file.extension == "tlb"] + [tools.typelibs[cpu]])
         preprocessor_args(args, ctx.attr.defines)
         if kind != "header" and ctx.outputs.header:
@@ -56,6 +56,7 @@ Upstream __DATE__ and __TIME__ expand to wall-clock time; avoid them in cached b
         "src": attr.label(allow_single_file = [".idl"], mandatory = True, doc = "IDL source."),
         "imports": attr.label_list(allow_files = [".idl", ".h", ".tlb"], doc = "Imported IDLs, headers and type libraries; each parent directory is searched."),
         "defines": attr.string_list(doc = "Preprocessor definitions, NAME or NAME=VALUE."),
+        "includes": attr.string_list(doc = "Additional package-relative include directories, searched in both source and generated output roots. Imported inputs must still be declared in imports."),
         "header": attr.output(doc = "Generated header (-h)."),
         "typelib": attr.output(doc = "Generated type library (-t)."),
         "client": attr.output(doc = "Generated client C stub (-c)."),

@@ -1,7 +1,8 @@
+#include "sub/resource_ids.h"
 import "example.idl";
 [
     uuid(7cd03083-7884-4d6d-8d79-b69a94c3f94b),
-    version(1.0)
+    version(TOOLS_VERSION)
 ]
 library ToolTests
 {

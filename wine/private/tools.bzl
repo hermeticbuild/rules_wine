@@ -5,10 +5,28 @@ TOOLS_TOOLCHAIN = Label("//wine:tools_toolchain_type")
 def _dirname(file):
     return file.dirname
 
-def include_args(args, tools, files):
+def include_args(ctx, args, tools, files, output):
     """Disable host includes and add directories of declared compiler inputs."""
     args.add("--nostdinc")
     args.add_all(files + [tools.include], map_each = _dirname, format_each = "-I%s", uniquify = True)
+    package = ctx.label.package
+    includes = ctx.attr.includes
+    workspace_root = ctx.label.workspace_root
+    for directory in includes:
+        if directory.startswith("/") or (len(directory) > 1 and directory[1] == ":") or "\\" in directory or ".." in directory.split("/"):
+            fail("includes entries must be package-relative slash-separated directories without '..': " + directory)
+    args.add_all([
+        "/".join([part for part in [workspace_root, package, directory] if part]) or "."
+        for directory in includes
+    ], format_each = "-I%s")
+
+    def generated_roots(file):
+        return [
+            "/".join([part for part in [file.root.path, workspace_root, package, directory] if part])
+            for directory in includes
+        ]
+
+    args.add_all([output], map_each = generated_roots, allow_closure = True, format_each = "-I%s")
 
 def nls_args(args, tools):
     """Use the distribution's declared NLS data on Unix."""

@@ -54,6 +54,9 @@ See [runtime requirements and limitations](docs/runtime.md).
 
 Register the native tools independently in `MODULE.bazel`:
 
+This API is unreleased; use the current checkout with the `local_path_override`
+above. Published 0.1.2 contains only runtime APIs.
+
 ```starlark
 wine = use_extension("@rules_wine//wine/extension:wine.bzl", "wine")
 use_repo(wine, "wine_tools_toolchains")

@@ -1,5 +1,5 @@
 #include <winresrc.h>
-#include "resource_ids.h"
+#include "sub/resource_ids.h"
 #if EXPECTED_DEFINE != 37
 #error missing caller define
 #endif
@@ -8,4 +8,4 @@ STRINGTABLE
 BEGIN
     IDS_HELLO "Wine tools: café"
 END
-IDR_PAYLOAD RCDATA "payload.txt"
+IDR_PAYLOAD RCDATA "assets/payload.txt"

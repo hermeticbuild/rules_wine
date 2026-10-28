@@ -1,0 +1,18 @@
+module(name = "external_native_tools_consumer")
+
+bazel_dep(name = "rules_wine", version = "0.1.2")
+local_path_override(
+    module_name = "rules_wine",
+    path = "../..",
+)
+
+bazel_dep(name = "native_tools_consumer", version = "0.0.0")
+local_path_override(
+    module_name = "native_tools_consumer",
+    path = "../tools",
+)
+
+wine = use_extension("@rules_wine//wine/extension:wine.bzl", "wine")
+use_repo(wine, "wine_tools_toolchains")
+
+register_toolchains("@wine_tools_toolchains//:all")

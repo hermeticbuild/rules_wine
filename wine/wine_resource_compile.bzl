@@ -7,7 +7,7 @@ def _impl(ctx):
     inputs = [ctx.file.src] + ctx.files.hdrs + ctx.files.data
     args = ctx.actions.args()
     args.add_all(["-u", "-O", "res"])
-    include_args(args, tools, inputs)
+    include_args(ctx, args, tools, inputs, ctx.outputs.out)
     nls_args(args, tools)
     preprocessor_args(args, ctx.attr.defines)
     args.add("-o", ctx.outputs.out)
@@ -36,6 +36,7 @@ Upstream __DATE__ and __TIME__ expand to wall-clock time; avoid them in cached b
         "hdrs": attr.label_list(allow_files = True, doc = "Declared included headers; each parent directory is searched."),
         "data": attr.label_list(allow_files = True, doc = "Declared resource assets; each parent directory is searched."),
         "defines": attr.string_list(doc = "Preprocessor definitions, NAME or NAME=VALUE."),
+        "includes": attr.string_list(doc = "Additional package-relative include directories, searched in both source and generated output roots. Inputs must still be declared in hdrs/data."),
         "out": attr.output(mandatory = True, doc = "Binary .res output."),
     },
     toolchains = [TOOLS_TOOLCHAIN],
