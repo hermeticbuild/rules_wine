@@ -1,3 +1,4 @@
+load("@bazel_lib//:bzl_library.bzl", "bzl_library")
 load("//wine/private:payload.bzl", "payload_platform")
 
 package(default_visibility = ["//wine:__subpackages__"])
@@ -5,3 +6,35 @@ package(default_visibility = ["//wine:__subpackages__"])
 exports_files(glob(["*.bzl"]))
 
 payload_platform(name = "payload_platform")
+
+bzl_library(
+    name = "adapter",
+    srcs = ["adapter.bzl"],
+    # keep: the Starlark plugin guesses lib; upstream exports lib_bzl instead.
+    deps = [
+        "paths",
+        "payload",
+        "@hermetic_launcher//launcher:lib_bzl",
+    ],
+)
+
+bzl_library(
+    name = "registrations",
+    srcs = ["registrations.bzl"],
+    deps = ["//wine:toolchain"],
+)
+
+bzl_library(
+    name = "paths",
+    srcs = ["paths.bzl"],
+)
+
+bzl_library(
+    name = "payload",
+    srcs = ["payload.bzl"],
+)
+
+bzl_library(
+    name = "repositories",
+    srcs = ["repositories.bzl"],
+)

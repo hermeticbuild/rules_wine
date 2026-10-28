@@ -54,15 +54,50 @@ def _impl(ctx):
 
 windows_runner_toolchain = rule(
     implementation = _impl,
+    doc = """Define a Windows runner implementation for native execution or Wine.
+
+Wrap this target in native toolchain declarations with constraints matching the
+executor OS/CPU. Use runner_toolchain_type for windows_actions and
+adapter_toolchain_type for windows_binary. The adapter registration additionally
+constrains the target platform to match the executor.
+
+Wine distributions must preserve their installation layout and include all
+runtime files. This rule supplies no CPU emulator itself; guest CPU support is
+determined by the supplied Wine distribution. Native runners execute payloads
+directly and must omit Wine files and launcher.
+""",
     attrs = {
-        "arch": attr.string(mandatory = True, values = ["x86_64", "aarch64"]),
-        "backend": attr.string(mandatory = True, values = ["native", "wine"]),
-        "launcher": attr.label(executable = True, cfg = "exec"),
-        "loader": attr.label(allow_single_file = True, cfg = "exec"),
-        "server": attr.label(allow_single_file = True, cfg = "exec"),
-        "files": attr.label(cfg = "exec"),
-        "identity": attr.string(),
-        "requirements": attr.string(),
-        "env": attr.string_dict(),
+        "arch": attr.string(
+            mandatory = True,
+            values = ["x86_64", "aarch64"],
+            doc = "Executor CPU, matching the registration's platform constraints; not the Windows guest CPU.",
+        ),
+        "backend": attr.string(
+            mandatory = True,
+            values = ["native", "wine"],
+            doc = "Use native for Windows executors or wine for Linux/macOS executors.",
+        ),
+        "launcher": attr.label(
+            executable = True,
+            cfg = "exec",
+            doc = "Wine supervisor executable, normally @rules_wine//wine/runtime:supervisor. Required for wine; omit for native.",
+        ),
+        "loader": attr.label(
+            allow_single_file = True,
+            cfg = "exec",
+            doc = "Native Wine loader file. Required for wine; omit for native.",
+        ),
+        "server": attr.label(
+            allow_single_file = True,
+            cfg = "exec",
+            doc = "Matching wineserver file. Required for wine; omit for native.",
+        ),
+        "files": attr.label(
+            cfg = "exec",
+            doc = "Complete Wine installation files, preserving paths relative to loader/server. Omit for native.",
+        ),
+        "identity": attr.string(doc = "Distribution/version description exposed through WineRuntimeInfo."),
+        "requirements": attr.string(doc = "Host library/OS requirements for consumers to inspect; not enforced by this rule."),
+        "env": attr.string_dict(doc = "Wine runtime environment, taking precedence over payload env. {loader_dir} and {server_dir} expand at execution time. Reserved lifecycle variables cannot be set here."),
     },
 )

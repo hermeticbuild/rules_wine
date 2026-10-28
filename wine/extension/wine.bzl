@@ -1,7 +1,7 @@
 """Pinned default Wine toolchains; custom runtimes use public toolchain rules."""
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-load("//wine/private:repositories.bzl", "registration_repository")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", _http_archive = "http_archive")
+load("//wine/private:repositories.bzl", _registration_repository = "registration_repository")
 
 _VERSION = "11.20.1"
 _RELEASE = "https://github.com/hermeticbuild/wine-prebuilt/releases/download/" + _VERSION
@@ -24,7 +24,7 @@ _DISTRIBUTIONS = {
 }
 
 def _archive(name, distribution):
-    http_archive(
+    _http_archive(
         name = name,
         urls = ["{}/wine-{}-{}.tar.zst".format(_RELEASE, distribution.platform, _VERSION)],
         sha256 = distribution.sha256,
@@ -47,11 +47,23 @@ def _impl(ctx):
             "identity": "hermeticbuild Wine {} {}".format(_VERSION, distribution.platform),
             "requirements": distribution.requirements,
         }
-    registration_repository(name = "wine_toolchains", distributions = json.encode(registrations))
+    _registration_repository(name = "wine_toolchains", distributions = json.encode(registrations))
 
     # No tags describe imports; consumers choose whether to use these defaults.
     return ctx.extension_metadata(reproducible = True)
 
 wine = module_extension(
     implementation = _impl,
+    doc = """Provide pinned Wine distributions and default Windows runner toolchains.
+
+Import wine_toolchains with use_repo, then register
+@wine_toolchains//:all explicitly. This extension has no configuration tags and
+does not register toolchains automatically. Custom distributions use
+windows_runner_toolchain and native toolchain declarations instead.
+
+Defaults cover Linux x86_64/ARM64, macOS ARM64 and native Windows x86_64/ARM64.
+ARM64 Wine distributions include FEX for x86_64 Windows programs. Linux requires
+glibc 2.17 or newer and a UTF-8 locale. The macOS distribution declares a 26.5
+deployment minimum; see the runtime guide for tested baselines and limitations.
+""",
 )

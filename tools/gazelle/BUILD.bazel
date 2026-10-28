@@ -1,0 +1,20 @@
+load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
+
+gazelle_binary(
+    name = "gazelle",
+    languages = ["@bazel_skylib_gazelle_plugin//bzl"],
+    pure = "on",
+)
+
+gazelle(
+    name = "update",
+    args = ["wine"],
+    gazelle = "gazelle",
+)
+
+gazelle(
+    name = "check",
+    args = ["wine"],
+    gazelle = "gazelle",
+    mode = "diff",
+)

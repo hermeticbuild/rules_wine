@@ -94,9 +94,11 @@ compilation, optional path mapping and choosing workers to avoid CPU translation
 
 ## Further reading
 
+- [BCR API reference](https://registry.bazel.build/docs/rules_wine) (for releases publishing API docs)
 - [Custom Wine distributions and toolchains](docs/toolchains.md)
 - [Runtime behavior, isolation and limitations](docs/runtime.md)
 - [Tests and contributing](tests/README.md)
+- [Maintaining Starlark libraries and API documentation](docs/contributing.md)
 - [Releases and BCR publication](docs/releasing.md)
 
 ## License

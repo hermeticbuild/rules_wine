@@ -9,6 +9,8 @@ supervisor source, not another Wine build.
 
 ```sh
 bazel run //.github/workflows:buildifier.check
+bazel run //tools/gazelle:check
+bazel build //docs:api
 e2e/test_runtime.sh
 (cd e2e/smoke && bazel test //:x86_64_test)
 .github/workflows/check_archive.sh
@@ -31,7 +33,9 @@ Bazel-version coverage runs in GitHub Actions.
    push it: `git push origin v0.1.0`. There is no scheduled tagging workflow.
 3. The release workflow reruns the native matrix, formatting and archive checks.
    The maintained `bazel-contrib` release workflow then tests the consumer,
-   creates `rules_wine-v0.1.0.tar.gz`, attests it and uploads a draft release.
+   creates `rules_wine-v0.1.0.tar.gz` and `rules_wine-v0.1.0.docs.tar.gz`,
+   attests both and uploads a draft release. API docs are extracted from the
+   committed source archive; `.bcr/source.template.json` supplies their `docs_url`.
 4. The maintained `publish-to-bcr` workflow uses `.bcr/` templates to calculate
    source integrity, prepare the registry entry and its attestations, and open a
    draft BCR PR through `hermeticbuild/bazel-central-registry`. It uses the

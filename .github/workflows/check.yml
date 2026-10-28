@@ -16,6 +16,8 @@ jobs:
         with:
           bazelisk-version: '1.30.0'
       - run: bazel run //.github/workflows:buildifier.check --lockfile_mode=off
+      - name: Check generated Starlark libraries
+        run: bazel run //tools/gazelle:check --lockfile_mode=off
   archive:
     name: Archive consumer / Bazel ${{ matrix.bazel }}
     runs-on: ubuntu-24.04
@@ -30,5 +32,5 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # 0.19.1
         with:
           bazelisk-version: '1.30.0'
-      - name: Package committed source and test the extracted consumer
+      - name: Package committed source and API docs, then test the extracted consumer
         run: .github/workflows/check_archive.sh
