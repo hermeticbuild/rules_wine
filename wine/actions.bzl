@@ -80,6 +80,33 @@ def _run(
         mnemonic = "WindowsRun",
         progress_message = None,
         **kwargs):
+    """Declare an action running a Windows executable on the resolved executor.
+
+    Linux/macOS use Wine with a fresh writable prefix per action. Windows
+    executes the payload directly. Use add_path for File arguments to preserve
+    optional Bazel path mapping. The selected runtime owns guest CPU support;
+    this helper does not inspect the executable's architecture.
+
+    Args:
+        ctx: The consuming rule context.
+        runner: Context returned by windows_actions.resolve for this action's
+            execution group.
+        executable: Windows executable File or FilesToRunProvider. Configure
+            source-built tools for Windows explicitly; this function does not
+            transition dependencies.
+        outputs: Output Files declared by the consuming rule.
+        arguments: List of strings and Args objects passed to the executable.
+        inputs: List or depset of input Files, as for ctx.actions.run.
+        env: Environment variables for the Windows process. Runfiles discovery
+            variables are reserved by the supervisor on Wine executors.
+        runtime_files: Additional Files required by the executable, such as DLLs.
+        tools: List of Files/FilesToRunProviders, or depset of Files, as for
+            ctx.actions.run. The executable is included automatically.
+        mnemonic: Action mnemonic.
+        progress_message: Optional progress message.
+        **kwargs: Additional ctx.actions.run arguments. Do not supply
+            exec_group or toolchain; these are determined by runner.
+    """
     action_group = runner.exec_group
     runner = runner.windows
     payload = executable.executable if type(executable) == "FilesToRunProvider" else executable

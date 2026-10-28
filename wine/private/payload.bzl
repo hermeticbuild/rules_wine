@@ -37,10 +37,16 @@ payload_platform = rule(
 
 def payload_attrs():
     return {
-        "binary": attr.label(executable = True, allow_files = True, mandatory = True, cfg = payload_transition),
+        "binary": attr.label(
+            executable = True,
+            allow_files = True,
+            mandatory = True,
+            cfg = payload_transition,
+            doc = "Windows executable file or executable target; its runfiles are included in the wrapper.",
+        ),
         "target_platform": attr.label(
             providers = [platform_common.PlatformInfo],
-            doc = "Optional Windows platform for payload compilation.",
+            doc = "Optional Windows compilation platform for binary. Its CPU must match the wrapper's CPU; omit for prebuilts.",
         ),
         "_payload_platform": attr.label(default = Label("//wine/private:payload_platform"), cfg = payload_transition),
         "_allowlist_function_transition": attr.label(

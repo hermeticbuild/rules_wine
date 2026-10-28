@@ -1,1 +1,18 @@
+load("@bazel_lib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
 exports_files(["wine.bzl"])
+
+bzl_library(
+    name = "wine",
+    srcs = ["wine.bzl"],
+    visibility = ["//visibility:public"],
+    # keep: bazel_tools has no public bzl_library for http.bzl's transitive loads.
+    deps = [
+        "//wine/private:repositories",
+        "@bazel_tools//tools/build_defs/repo:cache.bzl",
+        "@bazel_tools//tools/build_defs/repo:http.bzl",
+        "@bazel_tools//tools/build_defs/repo:utils.bzl",
+    ],
+)
