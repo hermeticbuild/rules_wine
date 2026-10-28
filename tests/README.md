@@ -173,7 +173,7 @@ cross-compilation check covers those four OS/CPU combinations.
 
 ## Verification boundaries
 
-The public Wine 11.20.1 archives are pinned by SHA-256 and preserve their complete
+The public Wine 11.20.2 archives are pinned by SHA-256 and preserve their complete
 installation layout. Linux distributions declare glibc 2.17 plus an available
 UTF-8 locale; these rules' native x86_64 and ARM64 tests use Ubuntu 24.04.
 Tests on newer workers do not re-establish the declared minimum libc version.
@@ -224,3 +224,17 @@ Before removing the supervisor's payload CPU check, these actions fail with
 `payload PE machine does not match aarch64`.
 
 The checked-in downstream consumer uses no Rosetta or custom Wine registration.
+
+## Native developer tools
+
+Run `bash e2e/test_tools.sh` for a relocated downstream module with no C/C++
+toolchain. CI exercises all five native executors on Bazel 8.5 and 9.3. Checks
+inspect message-table IDs/text, RC/header outputs, Unicode resources, generated
+assets/imports, COM and RPC stubs, typelib signatures/GUIDs/imports, both Windows
+output ABIs and the action graph. Unix also checks undeclared imports/assets fail
+under sandboxing and compares mapped/unmapped actions. Native Windows mapping
+and undeclared-file isolation require a remote sandbox and are not tested locally.
+
+The development-only `//tests:generated_rpc` target compiles generated headers
+and C stubs using LLVM's Windows SDK. ARM64 needs a fixture-only `__RPC_WIN64__`
+definition because the current MinGW `rpc.h` omits ARM64 from that macro's test.

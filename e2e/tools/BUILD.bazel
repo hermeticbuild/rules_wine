@@ -1,0 +1,122 @@
+load("@rules_wine//wine:wine_idl_compile.bzl", "wine_idl_compile")
+load("@rules_wine//wine:wine_message_compile.bzl", "wine_message_compile")
+load("@rules_wine//wine:wine_resource_compile.bzl", "wine_resource_compile")
+load("fixture.bzl", "generated_inputs")
+
+package(default_visibility = ["//visibility:public"])
+
+platform(
+    name = "unsupported_cpu",
+    constraint_values = [
+        "@platforms//os:windows",
+        "@platforms//cpu:riscv64",
+    ],
+)
+
+generated_inputs(name = "generated")
+
+wine_message_compile(
+    name = "messages",
+    src = "messages.mc",
+    out = "messages.rc",
+)
+
+wine_message_compile(
+    name = "message_res",
+    src = "messages.mc",
+    out = "messages.res",
+    output_format = "res",
+)
+
+wine_message_compile(
+    name = "custom_messages",
+    src = "messages.mc",
+    out = "custom_messages.rc",
+    header = "renamed_messages.h",
+)
+
+wine_resource_compile(
+    name = "inline_messages",
+    src = "messages.rc",
+    out = "inline_messages.res",
+)
+
+wine_message_compile(
+    name = "unicode_messages",
+    src = "messages_utf16.mc",
+    out = "unicode_messages.res",
+    output_format = "res",
+    unicode = True,
+)
+
+wine_resource_compile(
+    name = "resources",
+    src = "resources.rc",
+    out = "resources.res",
+    hdrs = ["generated/resource_ids.h"],
+    data = ["generated/payload.txt"],
+    defines = ["EXPECTED_DEFINE=37"],
+)
+
+wine_idl_compile(
+    name = "example",
+    src = "generated/example.idl",
+    header = "example.h",
+    proxy = "example_p.c",
+)
+
+wine_idl_compile(
+    name = "interfaces",
+    src = "interfaces.idl",
+    header = "interfaces.h",
+    iid = "interfaces_i.c",
+    imports = ["generated/example.idl"],
+    proxy = "interfaces_p.c",
+    typelib = "interfaces.tlb",
+)
+
+wine_idl_compile(
+    name = "rpc",
+    src = "rpc.idl",
+    client = "rpc_c.c",
+    header = "tool_rpc.h",
+    server = "rpc_s.c",
+)
+
+filegroup(
+    name = "all_outputs",
+    srcs = [
+        "custom_messages",
+        "example",
+        "inline_messages",
+        "interfaces",
+        "message_res",
+        "messages",
+        "resources",
+        "rpc",
+        "unicode_messages",
+    ],
+)
+
+wine_resource_compile(
+    name = "missing_asset",
+    src = "resources.rc",
+    out = "missing_asset.res",
+    hdrs = ["generated/resource_ids.h"],
+    defines = ["EXPECTED_DEFINE=37"],
+    tags = ["manual"],
+)
+
+wine_idl_compile(
+    name = "missing_import",
+    src = "interfaces.idl",
+    header = "missing_import.h",
+    tags = ["manual"],
+)
+
+wine_message_compile(
+    name = "bad_message",
+    src = "bad.mc",
+    out = "bad.rc",
+    tags = ["manual"],
+)

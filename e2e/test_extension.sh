@@ -35,9 +35,9 @@ root_module ''
 bazel mod graph --lockfile_mode=off --output=json > modules.json
 jq -e 'all(.. | objects; .name != "llvm")' modules.json >/dev/null
 query default.txt
-grep -q 'hermeticbuild Wine 11.20.1 linux-amd64' default.txt
-grep -q 'hermeticbuild Wine 11.20.1 linux-arm64' default.txt
-grep -q 'hermeticbuild Wine 11.20.1 macos-arm64' default.txt
+grep -q 'hermeticbuild Wine 11.20.2 linux-amd64' default.txt
+grep -q 'hermeticbuild Wine 11.20.2 linux-arm64' default.txt
+grep -q 'hermeticbuild Wine 11.20.2 macos-arm64' default.txt
 grep -q ':windows_x86_64 ' default.txt
 grep -q ':windows_aarch64 ' default.txt
 if grep -Eq ':windows_(x86_64|aarch64)_adapter' default.txt; then exit 1; fi

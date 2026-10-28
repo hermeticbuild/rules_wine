@@ -2,7 +2,7 @@
 
 ## Distribution requirements
 
-The defaults use [Wine 11.20.1](https://github.com/hermeticbuild/wine-prebuilt/releases/tag/11.20.1),
+The defaults use [Wine 11.20.2](https://github.com/hermeticbuild/wine-prebuilt/releases/tag/11.20.2),
 with archives pinned by SHA-256. Linux needs glibc 2.17 or newer and an available
 UTF-8 locale. Additional Windows subsystems may require host libraries beyond
 the console workloads exercised by the tests.
