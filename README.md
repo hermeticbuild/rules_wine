@@ -13,7 +13,7 @@ Downloads are pinned by checksum. You can also register your own distribution.
 Add to `MODULE.bazel`:
 
 ```starlark
-bazel_dep(name = "rules_wine", version = "0.1.0")
+bazel_dep(name = "rules_wine", version = "0.1.1")
 
 wine = use_extension("@rules_wine//wine/extension:wine.bzl", "wine")
 use_repo(wine, "wine_toolchains")
