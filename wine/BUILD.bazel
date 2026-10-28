@@ -6,9 +6,15 @@ package(default_visibility = ["//visibility:public"])
 
 toolchain_type(name = "runner_toolchain_type")
 
+toolchain_type(name = "tools_toolchain_type")
+
 exports_files([
     "actions.bzl",
     "toolchain.bzl",
+    "tools_toolchain.bzl",
+    "wine_idl_compile.bzl",
+    "wine_message_compile.bzl",
+    "wine_resource_compile.bzl",
     "windows_binary.bzl",
 ])
 
@@ -25,6 +31,24 @@ bzl_library(
 )
 
 bzl_library(
+    name = "wine_idl_compile",
+    srcs = ["wine_idl_compile.bzl"],
+    deps = ["//wine/private:tools"],
+)
+
+bzl_library(
+    name = "wine_message_compile",
+    srcs = ["wine_message_compile.bzl"],
+    deps = ["//wine/private:tools"],
+)
+
+bzl_library(
+    name = "wine_resource_compile",
+    srcs = ["wine_resource_compile.bzl"],
+    deps = ["//wine/private:tools"],
+)
+
+bzl_library(
     name = "actions",
     srcs = ["actions.bzl"],
 )
@@ -32,4 +56,9 @@ bzl_library(
 bzl_library(
     name = "toolchain",
     srcs = ["toolchain.bzl"],
+)
+
+bzl_library(
+    name = "tools_toolchain",
+    srcs = ["tools_toolchain.bzl"],
 )
