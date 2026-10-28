@@ -12,6 +12,15 @@ prefix="rules_wine-${tag#v}"
 archive="rules_wine-$tag.tar.gz"
 git -C "$root" archive --format=tar --prefix="$prefix/" "$ref" | gzip -n > "$archive"
 checksum=$(shasum -a 256 "$archive" | cut -d ' ' -f 1)
+# Extract docs from exactly the committed sources shipped in this release.
+docs_archive="$PWD/${archive%.tar.gz}.docs.tar.gz"
+source_dir=$(mktemp -d "${TMPDIR:-/tmp}/rules-wine-docs.XXXXXX")
+tar -xzf "$archive" -C "$source_dir"
+(
+  cd "$source_dir/$prefix"
+  trap 'bazel shutdown >/dev/null 2>&1' EXIT
+  bash docs/package.sh "$docs_archive" --lockfile_mode=off
+)
 cat <<EOF
 ## Bzlmod
 
