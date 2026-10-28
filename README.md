@@ -8,6 +8,10 @@ The [native E2E suite](tests/README.md) exercises the default toolchains on the
 five required executor platforms with Bazel 8 and 9. Run `e2e/test_runtime.sh`
 locally; GitHub Actions runs the same consumer and separate Linux regression tests.
 
+Contributor checks and the source archive/BCR workflow are documented in
+[releasing rules_wine](docs/releasing.md). The ruleset is licensed under
+[Apache-2.0](LICENSE); downloaded runtimes retain their own licenses.
+
 Bazel 8.5.0 and 9.3.1 are exercised. Runtime coverage:
 
 | Executor / Windows payload | Acquisition | Validation |

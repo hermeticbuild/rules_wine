@@ -1,5 +1,38 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_wine//wine:windows_binary.bzl", "windows_binary")
 load(":consumer.bzl", "consumer")
+
+config_setting(
+    name = "windows_arm64",
+    constraint_values = [
+        "@platforms//os:windows",
+        "@platforms//cpu:aarch64",
+    ],
+)
+
+[
+    sh_test(
+        name = cpu + "_test",
+        size = "small",
+        srcs = ["verify.sh"],
+        args = ["$(rootpath :action_" + cpu + ")"] + select({
+            "@platforms//os:windows": [],
+            "//conditions:default": ["$(rootpath :adapter_" + cpu + ")"],
+        }),
+        data = ["action_" + cpu] + select({
+            "@platforms//os:windows": [],
+            "//conditions:default": ["adapter_" + cpu],
+        }),
+        target_compatible_with = ["@platforms//cpu:aarch64"] if cpu == "aarch64" else select({
+            ":windows_arm64": ["@platforms//:incompatible"],
+            "//conditions:default": [],
+        }),
+    )
+    for cpu in [
+        "x86_64",
+        "aarch64",
+    ]
+]
 
 [
     windows_binary(

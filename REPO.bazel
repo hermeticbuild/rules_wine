@@ -1,0 +1,3 @@
+"""Repository-wide package and license metadata."""
+
+repo(default_package_metadata = ["//:package_metadata"])
