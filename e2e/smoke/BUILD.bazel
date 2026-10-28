@@ -15,9 +15,9 @@ config_setting(
         name = cpu + "_test",
         size = "small",
         srcs = ["verify.sh"],
-        args = ["$(rootpath :action_" + cpu + ")"] + select({
+        args = ["$(rlocationpath :action_" + cpu + ")"] + select({
             "@platforms//os:windows": [],
-            "//conditions:default": ["$(rootpath :adapter_" + cpu + ")"],
+            "//conditions:default": ["$(rlocationpath :adapter_" + cpu + ")"],
         }),
         data = ["action_" + cpu] + select({
             "@platforms//os:windows": [],
@@ -27,6 +27,7 @@ config_setting(
             ":windows_arm64": ["@platforms//:incompatible"],
             "//conditions:default": [],
         }),
+        use_bash_launcher = True,
     )
     for cpu in [
         "x86_64",

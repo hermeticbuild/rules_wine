@@ -2,7 +2,7 @@
 # The Windows fixture emits one JSON line; verify its observable contract.
 set -euo pipefail
 for output in "$@"; do
-  IFS= read -r record < "$output"
+  IFS= read -r record < "$(rlocation "$output")"
   [[ $record == *'"child":"child-ok"'* ]]
   [[ $record == *'"FIXTURE_VALUE":"environment café"'* ]]
   [[ $record == *',"space value","","café","$literal","declared input café"]'* ]]
