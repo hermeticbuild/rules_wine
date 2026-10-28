@@ -1,5 +1,5 @@
 // Assert observable records written by independent Windows fixture processes.
-#include "wine/runtime/json.h"
+#include "nlohmann/json.hpp"
 
 #include <cstdlib>
 #include <filesystem>
@@ -11,14 +11,14 @@
 
 namespace fs = std::filesystem;
 
-wine::Json read(const fs::path &path) {
+nlohmann::json read(const fs::path &path) {
   std::ifstream in(path);
   if (!in) {
     throw std::runtime_error("cannot read " + path.string());
   }
   std::string data{std::istreambuf_iterator<char>(in),
                    std::istreambuf_iterator<char>()};
-  return wine::JsonParser(data).parse();
+  return nlohmann::json::parse(data);
 }
 
 int main(int argc, char **argv) {
@@ -27,30 +27,30 @@ int main(int argc, char **argv) {
       throw std::runtime_error("unexpected verifier arguments");
     }
     auto config = read(std::string(argv[0]) + ".json");
-    for (const auto &[file, expected] : config.fields) {
+    for (const auto &[file, expected] : config.items()) {
       auto record = read(fs::path(std::getenv("TEST_SRCDIR")) / file);
       std::vector<std::string> actual;
-      const auto &args = record.at("args").elements;
+      const auto args = record.at("args").get<std::vector<std::string>>();
       for (size_t i = 0; i < args.size(); ++i) {
-        if (args[i].as_string() == "--output") {
+        if (args[i] == "--output") {
           ++i;
         } else {
-          actual.push_back(args[i].as_string());
+          actual.push_back(args[i]);
         }
       }
-      if (actual.size() != expected.elements.size()) {
-        throw std::runtime_error(
-            file + ": argv cardinality " + std::to_string(actual.size()) +
-            " != " + std::to_string(expected.elements.size()));
+      if (actual.size() != expected.size()) {
+        throw std::runtime_error(file + ": argv cardinality " +
+                                 std::to_string(actual.size()) +
+                                 " != " + std::to_string(expected.size()));
       }
       for (size_t i = 0; i < actual.size(); ++i) {
-        if (actual[i] != expected.elements[i].as_string()) {
+        if (actual[i] != expected.at(i).get<std::string>()) {
           throw std::runtime_error(file + ": unexpected argv[" +
                                    std::to_string(i) + "] = " + actual[i]);
         }
       }
-      if (record.at("child").kind != wine::Json::null_value &&
-          record.at("child").as_string() != "child-ok") {
+      if (record.contains("child") && !record.at("child").is_null() &&
+          record.at("child").get<std::string>() != "child-ok") {
         throw std::runtime_error(file + ": child process failed");
       }
       std::cout << "PASS: " << file << '\n';

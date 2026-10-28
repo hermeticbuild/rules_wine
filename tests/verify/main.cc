@@ -1,5 +1,5 @@
 // Real Wine lifecycle checks. This executable runs on a native Linux worker.
-#include "wine/runtime/json.h"
+#include "nlohmann/json.hpp"
 
 #include <dirent.h>
 #include <signal.h>
@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -38,33 +39,17 @@ void write(const fs::path &file, const std::string &data) {
   }
 }
 std::string quote(const std::string &value) {
-  std::string result = "\"";
-  for (char c : value) {
-    switch (c) {
-    case '"':
-      result += "\\\"";
-      break;
-    case '\\':
-      result += "\\\\";
-      break;
-    case '\n':
-      result += "\\n";
-      break;
-    default:
-      result += c;
-    }
-  }
-  return result + '"';
+  return nlohmann::json(value).dump();
 }
 struct Config {
   fs::path launcher, loader, server, payload, companion;
   bool payload_layout = false;
 };
-std::string field(const wine::Json &json, const std::string &name) {
-  return json.at(name).as_string();
+std::string field(const nlohmann::json &json, const std::string &name) {
+  return json.at(name).get<std::string>();
 }
 Config config(const std::string &data) {
-  wine::Json value = wine::JsonParser(data).parse();
+  auto value = nlohmann::json::parse(data);
   fs::path root =
       fs::u8path(std::getenv("TEST_SRCDIR") ? std::getenv("TEST_SRCDIR") : "");
   auto locate = [&](const char *name) {
@@ -72,7 +57,7 @@ Config config(const std::string &data) {
   };
   Config c{locate("Launcher"), locate("Loader"), locate("Server"),
            locate("Payload"), locate("Companion")};
-  c.payload_layout = value.at("PayloadLayout").as_bool();
+  c.payload_layout = value.value("PayloadLayout", false);
   return c;
 }
 struct Process {
@@ -143,8 +128,8 @@ void wait_file(const fs::path &file, const std::vector<fs::path> &logs) {
     throw std::runtime_error(message);
   }
 }
-wine::Json record(const fs::path &file) {
-  return wine::JsonParser(read(file)).parse();
+nlohmann::json record(const fs::path &file) {
+  return nlohmann::json::parse(read(file));
 }
 std::string output_arg(const fs::path &file) {
   return "{windows_path:" + quote(path_string(file)) + "}";
@@ -241,6 +226,42 @@ void verify_lifecycle(const Config &c, const fs::path &dir) {
     return launch(c.launcher, invocation,
                   dir / ("invocation-" + std::to_string(count) + ".log"));
   };
+  // Consume each JSON string exactly, retaining the surrounding argument text.
+  const std::string marker =
+      R"({windows_path:"quote\" backslash\\ caf\u00e9 \uD83D\uDE00 {x}"})";
+  fs::path json_output = dir / "json.json";
+  Process json_process =
+      start(c.payload, {"--output", output_arg(json_output),
+                        "before" + marker + "middle" + marker + "after"});
+  require(wait(json_process) == 0,
+          "JSON path decoding: " + read(json_process.log));
+  std::string converted =
+      "Z:" +
+      path_string(fs::absolute(fs::u8path("quote\" backslash\\ café 😀 {x}")));
+  std::replace(converted.begin(), converted.end(), '/', '\\');
+  require(record(json_output).at("args").at(2) ==
+              "before" + converted + "middle" + converted + "after",
+          "escaped Unicode or path marker boundaries changed");
+  for (const auto &argument : {
+           R"({windows_path:42})",
+           R"({windows_path:"missing brace")",
+           R"({windows_path:"space before brace" })",
+           R"({windows_path:"\uD800"})",
+           R"({windows_path:"\q"})",
+       }) {
+    Process invalid = start(c.payload, {argument});
+    require(wait(invalid) == 125, "accepted malformed path marker");
+  }
+  const std::string valid_config = runtime_config(c, c.payload);
+  for (const auto &data : {std::string("{"), std::string("[]"),
+                           valid_config + " trailing", std::string("{}")}) {
+    fs::path config_file = dir / "invalid.json";
+    write(config_file, data);
+    Process invalid =
+        launch(c.launcher, {"--config", path_string(config_file), "--"},
+               dir / "invalid.log");
+    require(wait(invalid) == 125, "accepted malformed JSON configuration");
+  }
   fs::path first_out = dir / "first.json", second_out = dir / "second.json";
   Process first = start(
       c.payload, {"--output", output_arg(first_out), "--isolated", "--hold"});
@@ -248,7 +269,7 @@ void verify_lifecycle(const Config &c, const fs::path &dir) {
       c.payload, {"--output", output_arg(second_out), "--isolated", "--hold"});
   wait_file(first_out, {first.log, second.log});
   wait_file(second_out, {first.log, second.log});
-  wine::Json one = record(first_out), two = record(second_out);
+  auto one = record(first_out), two = record(second_out);
   std::string prefix1 = field(one.at("env"), "WINEPREFIX"),
               prefix2 = field(two.at("env"), "WINEPREFIX");
   require(!prefix1.empty() && !prefix2.empty() && prefix1 != prefix2 &&
