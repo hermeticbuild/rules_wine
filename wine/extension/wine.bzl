@@ -33,13 +33,21 @@ _TOOLS = {
 
 def _tools_archive(name, platform, sha256):
     suffix = ".exe" if platform.startswith("windows-") else ""
+    exports = [
+        "bin/" + tool + suffix
+        for tool in ["wmc", "wrc", "widl"]
+    ] + [
+        "include/wine/windows/windows.h",
+        "lib/wine/x86_64-windows/stdole2.tlb",
+        "lib/wine/aarch64-windows/stdole2.tlb",
+    ] + (["share/wine/nls/locale.nls"] if not suffix else [])
     _http_archive(
         name = name,
         urls = ["{}/wine-tools-{}-{}.tar.zst".format(_RELEASE, platform, _VERSION)],
         sha256 = sha256,
         build_file_content = "\n".join([
             'package(default_visibility = ["//visibility:public"])',
-            'exports_files(["bin/wmc{0}", "bin/wrc{0}", "bin/widl{0}", "include/wine/windows/windows.h", "lib/wine/x86_64-windows/stdole2.tlb", "lib/wine/aarch64-windows/stdole2.tlb"] + glob(["share/wine/nls/locale.nls"]))'.format(suffix),
+            "exports_files(" + repr(exports) + ")",
             'filegroup(name = "files", srcs = glob(["**"]))',
             "",
         ]),
