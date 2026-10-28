@@ -1,0 +1,3 @@
+# The ANSI and UTF-16 message fixtures must encode the same LF message text.
+/e2e/tools/messages.mc text eol=lf
+/e2e/tools/messages_utf16.mc binary
