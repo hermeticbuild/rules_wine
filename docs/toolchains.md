@@ -1,6 +1,6 @@
 # Custom Wine toolchains
 
-The module extension registers the published defaults when you call
+The module extension generates the default toolchains. Register them with
 `register_toolchains("@wine_toolchains//:all")`; a `bazel_dep` alone does not.
 For a custom-only setup, omit that extension and register your own toolchains
 as below. To choose workers without replacing the distributions, see

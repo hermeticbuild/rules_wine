@@ -1,5 +1,5 @@
 // Linux/macOS Wine supervisor, built from source for the execution platform.
-#include "json.h"
+#include "nlohmann/json.hpp"
 #include "rules_cc/cc/runfiles/runfiles.h"
 
 #include <algorithm>
@@ -15,6 +15,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -72,29 +73,19 @@ std::string absolute_path(const fs::path &value) {
 }
 
 Config configuration(const std::string &data) {
-  wine::Json root = wine::JsonParser(data).parse();
-  if (root.kind != wine::Json::object) {
+  auto root = nlohmann::json::parse(data);
+  if (!root.is_object()) {
     throw std::runtime_error("expected JSON configuration object");
   }
   Config c;
-  c.arch = root.at("arch").as_string();
-  c.loader = root.at("loader").as_string();
-  c.server = root.at("server").as_string();
-  c.payload = root.at("payload").as_string();
-  c.runfiles = root.at("runfiles").as_bool();
-  auto strings = [](const wine::Json &value) {
-    std::map<std::string, std::string> result;
-    if (value.kind != wine::Json::null_value &&
-        value.kind != wine::Json::object) {
-      throw std::runtime_error("expected JSON environment object");
-    }
-    for (const auto &[key, item] : value.fields) {
-      result[key] = item.as_string();
-    }
-    return result;
-  };
-  c.env = strings(root.at("env"));
-  c.runtime_env = strings(root.at("runtime_env"));
+  c.arch = root.at("arch").get<std::string>();
+  c.loader = root.at("loader").get<std::string>();
+  c.server = root.at("server").get<std::string>();
+  c.payload = root.at("payload").get<std::string>();
+  c.runfiles = root.value("runfiles", false);
+  c.env = root.value("env", std::map<std::string, std::string>{});
+  c.runtime_env =
+      root.value("runtime_env", std::map<std::string, std::string>{});
   return c;
 }
 
@@ -158,19 +149,19 @@ std::string convert(std::string value) {
   constexpr const char *marker = "{windows_path:";
   size_t start = 0;
   while ((start = value.find(marker, start)) != std::string::npos) {
-    size_t consumed = 0;
-    wine::Json decoded =
-        wine::JsonParser(value.substr(start + std::strlen(marker)))
-            .parse_prefix(consumed);
-    if (decoded.kind != wine::Json::string) {
+    std::istringstream input(value.substr(start + std::strlen(marker)));
+    nlohmann::json decoded;
+    input >> decoded;
+    if (!decoded.is_string()) {
       throw std::runtime_error(
           "expected JSON string in Windows path interpolation");
     }
-    size_t end = start + std::strlen(marker) + consumed;
+    size_t end =
+        start + std::strlen(marker) + static_cast<size_t>(input.tellg());
     if (end == value.size() || value[end] != '}') {
       throw std::runtime_error("unterminated Windows path interpolation");
     }
-    std::string converted = windows_path(decoded.as_string());
+    std::string converted = windows_path(decoded.get<std::string>());
     value.replace(start, end + 1 - start, converted);
     start += converted.size();
   }

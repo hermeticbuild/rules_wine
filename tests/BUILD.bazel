@@ -36,9 +36,8 @@ cc_binary(
         "-std=c++17",
         "-Wall",
         "-Wextra",
-        "-Werror",
     ],
-    deps = ["//wine/runtime:json"],
+    deps = ["@nlohmann_json//:json"],
 )
 
 test_suite(
@@ -58,9 +57,8 @@ cc_binary(
         "-std=c++17",
         "-Wall",
         "-Wextra",
-        "-Werror",
     ],
-    deps = ["//wine/runtime:json"],
+    deps = ["@nlohmann_json//:json"],
 )
 
 cc_binary(

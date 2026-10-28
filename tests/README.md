@@ -70,6 +70,8 @@ test checks concurrent private
 prefixes, cancellation ownership, descendant cleanup, exit status, native Wine CPU
 rejection, malformed payloads, and unchanged input files. The layout test creates real symlinks because
 remote execution can materialize ordinary runfiles and hide local layout bugs.
+JSON decoding also checks escaped Unicode, multiple embedded path markers with
+surrounding text, and rejection of malformed configuration and path strings.
 The argv regression passes arguments through the generated launcher and asserts
 exact records for spaces, empty strings, Unicode, literal dollar/location strings,
 opaque options and leading `--config`/`--` arguments. Invocation arguments belong
