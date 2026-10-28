@@ -8,7 +8,7 @@ cp "$root/.bazelversion" "$scratch/.bazelversion"
 printf 'Verification workspace: %s\n' "$scratch"
 mkdir "$scratch/first" "$scratch/second"
 printf '\n' > "$scratch/BUILD.bazel"
-printf 'import %s/.bazelrc\n' "$rules" > "$scratch/.bazelrc"
+cp "$root/e2e/smoke/.bazelrc" "$scratch/.bazelrc"
 dependency() {
   printf 'module(name = "%s", version = "0.1.0")\nbazel_dep(name = "rules_wine", version = "0.1.0")\nwine = use_extension("@rules_wine//wine/extension:wine.bzl", "wine")\n%s\nuse_repo(wine, "wine_toolchains")\n' "$1" "$2" > "$scratch/$1/MODULE.bazel"
   printf '\n' > "$scratch/$1/BUILD.bazel"

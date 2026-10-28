@@ -9,7 +9,8 @@ e2e/test_runtime.sh
 USE_BAZEL_VERSION=8.5.0 e2e/test_runtime.sh
 ```
 
-Use Bash (Git Bash on Windows), Bazel/Bazelisk and jq. The script detects the
+Use Bash (Git Bash on Windows), Bazel/Bazelisk and jq, plus an installed C++17
+compiler on Linux/macOS. The script detects the
 native executor and checks Bazel's host constraints and the fixtures' PE headers.
 It tests amd64 on Linux amd64; ARM64 and amd64 on Linux/macOS ARM64; and the
 native guest CPU on Windows. Wine platforms exercise both `windows_actions.run`
@@ -32,8 +33,10 @@ arguments, environment and child execution. Linux/macOS run with path mapping of
 and on. Windows runs without mapping: Bazel 8/9 have no local Windows sandbox
 strategy that supports mapped actions. Native Windows mapping needs a suitable
 remote executor and remains unverified.
-The consumer uses only the default Wine registrations. An explicit compiler SDK
-override works around LLVM 0.7.6's broken Apple SDK URL; it does not replace Wine.
+The consumer uses only the default Wine registrations and Bazel's detected local
+C++ toolchain. It checks that LLVM is absent from the resolved module graph;
+no compiler or SDK override is needed. The root workspace separately uses
+development-only LLVM toolchains for cross-compilation and regression fixtures.
 No remote executor or runtime cache is used. Logs, output records and action graphs
 remain in the printed temporary directory and are uploaded by CI on failure.
 
@@ -195,8 +198,10 @@ parser, downloaded with HTTP 200, and its embedded SDK version and SHA-256 verif
 `debe353b27a13cd678b26ab216a040acf07b62c0639d8ac522df4ca07d121eb2`.
 For the override, set `type = "pkg"` and
 `strip_prefix = "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"`.
-This verification does not update the pinned LLVM dependency's default SDK URL;
-downstream macOS builds need the override until that dependency is updated.
+This historical cross-compilation verification does not update the development
+LLVM dependency's default SDK URL. It affects contributors choosing that LLVM
+configuration, not consumers using another toolchain. The downstream smoke
+consumer now builds the supervisor with the installed compiler and SDK.
 
 The published macOS ARM64 archive runs independent ARM64 and amd64 fixtures through Bazel
 on macOS 26.5.2 with the SDK override above. The release manifest records SDK 26.5,
@@ -212,5 +217,4 @@ ARM64 through both APIs, checks action placement and independently reads the PE 
 Before removing the supervisor's payload CPU check, these actions fail with
 `payload PE machine does not match aarch64`.
 
-The checked-in downstream consumer uses the SDK override above on macOS ARM64.
-No Rosetta or custom Wine registration is used.
+The checked-in downstream consumer uses no Rosetta or custom Wine registration.

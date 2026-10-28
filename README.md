@@ -17,7 +17,7 @@ Bazel 8.5.0 and 9.3.1 are exercised. Runtime coverage:
 | Windows x86_64 / x86_64 | No Wine required | Direct actions pass on native GitHub runners |
 | Windows ARM64 / ARM64 | No Wine required | Direct actions pass on native GitHub runners |
 | macOS Intel / x86_64 | User-supplied native archive | Supervisor cross-compiled with Apple SDK 26.5 override; execution untested |
-| macOS ARM64 / ARM64 and x86_64 | Pinned Wine 11.20.1 default | Native and FEX-translated actions and adapters pass on native GitHub runners with Apple SDK 26.5 override; initialization caveat below |
+| macOS ARM64 / ARM64 and x86_64 | Pinned Wine 11.20.1 default | Native and FEX-translated actions and adapters; initialization caveat below |
 
 The default ARM64 archives bundle FEX and can also run amd64 Windows executables.
 No extra registration or guest-CPU attribute is needed: the selected Wine runtime
@@ -40,13 +40,18 @@ register_toolchains("@wine_toolchains//:all")
 
 Register execution platforms appropriate to your local or remote workers. The
 ruleset does not infer remote worker capabilities from the machine running Bazel.
-The supervisor is a C++ source target built with the execution-platform compiler.
-This module depends on `rules_cc` and `@llvm` and registers `@llvm` C++ toolchains;
-downstream Wine builds compile the supervisor on demand. `hermetic_launcher`
-provides the small runfiles bootstrap from published binaries; consumers do not
-need a Rust compiler.
-`@llvm` 0.7.6 uses Bazel APIs unavailable in Bazel 7.7, so this source-built
-version requires Bazel 8.5 or newer.
+The supervisor is compiled on demand with the C++ toolchain selected for the
+execution platform. Linux/macOS Wine execution needs a C++17-capable GCC or Clang
+toolchain. For local builds, Bazel can discover the installed compiler (Xcode or
+Command Line Tools on macOS). For hermetic or remote builds, register your chosen
+C++ toolchain in your root module and provide matching execution platforms.
+
+`rules_cc` remains a production dependency for the supervisor's build rules and
+runfiles library. LLVM and its toolchain registrations are development-only:
+depending on `rules_wine` does not select a compiler for your project. The
+`hermetic_launcher` runfiles bootstrap comes from published binaries, so consumers
+do not need a Rust compiler. Native Windows actions need neither the supervisor
+nor a C++ compiler from this ruleset. Supported Bazel versions start at 8.5.
 Native Windows registrations have no Wine archive dependency. Archives are fetched
 only when referenced.
 
@@ -59,8 +64,9 @@ Bazel wrappers were exercised on 26.5.2. This does not prove execution on exact
 26.5. The macOS archive is an unsigned command-line runtime, not a notarized app.
 See release manifests, `DISTRIBUTION.md` and [testing notes](tests/README.md).
 
-The pinned `@llvm` 0.7.6 default macOS SDK URL is unavailable. macOS source builds
-currently need the SDK archive override documented in the testing notes.
+The repository's development LLVM configuration has an unavailable macOS SDK URL;
+its workaround is in the [testing notes](tests/README.md). This does not affect
+consumers using their own compiler configuration.
 
 ## Executable adapters
 

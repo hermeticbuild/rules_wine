@@ -1,5 +1,4 @@
 common --enable_bzlmod
 common --test_output=errors
-common --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
 build:remote --remote_executor=grpcs://remote.buildbuddy.io
 build:remote --extra_execution_platforms=@rules_wine//platforms:remote_linux_x86_64
