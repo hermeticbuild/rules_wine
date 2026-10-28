@@ -27,7 +27,7 @@ config_setting(
             ":windows_arm64": ["@platforms//:incompatible"],
             "//conditions:default": [],
         }),
-        use_bash_launcher = True,
+        deps = ["@rules_shell//shell/runfiles"],
     )
     for cpu in [
         "x86_64",

@@ -10,6 +10,7 @@ module(name = "custom_wine_consumer")
 bazel_dep(name = "rules_wine", version = "0.1.0")
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "llvm", version = "0.8.26", dev_dependency = True)
+bazel_dep(name = "rules_shell", version = "0.8.0", dev_dependency = True)
 register_toolchains("@llvm//toolchain:all", dev_dependency = True)
 local_path_override(module_name = "rules_wine", path = "$root")
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
@@ -59,6 +60,7 @@ toolchain(
 )
 BUILD
 cp "$root/e2e/smoke/consumer.bzl" "$scratch/consumer.bzl"
+cp "$root/e2e/smoke/verify.sh" "$scratch/verify.sh"
 cp "$root/e2e/smoke/.bazelrc" "$scratch/.bazelrc"
 cp "$root/.bazelversion" "$scratch/.bazelversion"
 printf '%s\n' "Verification consumer: $scratch"
