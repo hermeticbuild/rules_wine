@@ -9,6 +9,12 @@ e2e/test_runtime.sh
 USE_BAZEL_VERSION=8.5.0 e2e/test_runtime.sh
 ```
 
+The same consumer also exposes `//:x86_64_test` and `//:aarch64_test` for Bazel
+and BCR presubmits. Run them from `e2e/smoke` for the supported guest CPUs on
+your executor. These tests check the records from both APIs on Wine platforms
+and the direct action on Windows. For formatting and archive checks, see
+[releasing rules_wine](../docs/releasing.md).
+
 Use Bash (Git Bash on Windows), Bazel/Bazelisk and jq. The E2E module explicitly
 selects LLVM 0.8.26 and its SDKs. The script detects the
 native executor and checks Bazel's host constraints and the fixtures' PE headers.

@@ -37,7 +37,9 @@ if [[ $os != windows ]]; then
   if [[ $cpu == aarch64 ]]; then guests+=(x86_64); fi
 fi
 targets=()
+test_targets=()
 for guest in "${guests[@]}"; do
+  test_targets+=("//:${guest}_test")
   pe="$root/tests/fixture/fixture_$guest.exe"
   offset=$(od -An -tu4 -j60 -N4 "$pe" | tr -d ' \n')
   machine=$(od -An -tx2 -j"$((offset + 4))" -N2 "$pe" | tr -d ' \n')
@@ -75,6 +77,7 @@ for mode in "${modes[@]}"; do
     done
   done
 done
+bazel_cmd test "${test_targets[@]}" "${flags[@]}"
 bazel_cmd aquery "mnemonic(\"WindowsRun|WineAdapterConsumer\", set(${targets[*]}))" \
   "${flags[@]}" --output=jsonproto > "$scratch/actions.json" 2> "$scratch/actions.log"
 jq -e --arg os "$os" --arg cpu "$cpu" --argjson count "${#targets[@]}" '
