@@ -50,9 +50,6 @@ done
 flags=(--lockfile_mode=off --remote_executor= --remote_cache= --disk_cache=
   --remote_accept_cached=false --symlink_prefix="$scratch/bazel-")
 echo "Expected native executor: $os/$cpu"
-bazel_cmd mod graph --lockfile_mode=off --output=json > "$scratch/modules.json"
-# This consumer selects no compiler module: rules_wine must not bring LLVM.
-jq -e 'all(.. | objects; .name != "llvm")' "$scratch/modules.json" >/dev/null
 bazel_cmd query @platforms//host:host --lockfile_mode=off --output=build | tee "$scratch/host.txt"
 grep -q "cpu:$cpu" "$scratch/host.txt"
 grep -q "os:$os" "$scratch/host.txt"

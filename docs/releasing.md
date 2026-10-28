@@ -19,7 +19,7 @@ runs the downstream test there. Commit changes before running it. It uses the
 same `release_prep.sh` as the release workflow and leaves the archive, notes and
 test workspace at the printed path. On ARM64 Linux/macOS, also run
 `//:aarch64_test`; on Windows ARM64 use that target instead of `//:x86_64_test`.
-Local Wine tests require an installed C++17 compiler. Full native platform and
+The E2E module selects LLVM and its SDKs explicitly. Full native platform and
 Bazel-version coverage runs in GitHub Actions.
 
 ## Publish a version
