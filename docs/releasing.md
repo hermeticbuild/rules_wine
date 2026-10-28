@@ -45,6 +45,11 @@ including when GitHub immutable releases are enabled. If submission fails, fix
 the configuration or credentials and rerun the failed jobs while the release is
 still a draft. Do not move a published tag or replace a published archive.
 
+Keep the two reusable release/publish workflows on explicit version tags. BCR's
+SLSA verifier rejects bare commit SHAs in their signed workflow identities. The
+0.1.0 submission exposed this incompatibility; 0.1.1 uses tags pointing to the
+same workflow revisions. Ordinary action steps remain pinned by commit SHA.
+
 For a local packaging dry run, from an empty output directory:
 
 ```sh

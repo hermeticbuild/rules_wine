@@ -34,7 +34,7 @@ Rosetta or QEMU fallback; i386 execution is outside the tested contract.
 Until this module is published, consume a checkout through a local override:
 
 ```starlark
-bazel_dep(name = "rules_wine", version = "0.1.0")
+bazel_dep(name = "rules_wine", version = "0.1.1")
 bazel_dep(name = "platforms", version = "1.1.0")  # CPU constraints for fixed prebuilts.
 local_path_override(module_name = "rules_wine", path = "../rules_wine")
 wine = use_extension("@rules_wine//wine/extension:wine.bzl", "wine")
