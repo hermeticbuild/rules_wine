@@ -9,8 +9,8 @@ e2e/test_runtime.sh
 USE_BAZEL_VERSION=8.5.0 e2e/test_runtime.sh
 ```
 
-Use Bash (Git Bash on Windows), Bazel/Bazelisk and jq, plus an installed C++17
-compiler on Linux/macOS. The script detects the
+Use Bash (Git Bash on Windows), Bazel/Bazelisk and jq. The E2E module explicitly
+selects LLVM 0.8.26 and its SDKs. The script detects the
 native executor and checks Bazel's host constraints and the fixtures' PE headers.
 It tests amd64 on Linux amd64; ARM64 and amd64 on Linux/macOS ARM64; and the
 native guest CPU on Windows. Wine platforms exercise both `windows_actions.run`
@@ -33,10 +33,10 @@ arguments, environment and child execution. Linux/macOS run with path mapping of
 and on. Windows runs without mapping: Bazel 8/9 have no local Windows sandbox
 strategy that supports mapped actions. Native Windows mapping needs a suitable
 remote executor and remains unverified.
-The consumer uses only the default Wine registrations and Bazel's detected local
-C++ toolchain. It checks that LLVM is absent from the resolved module graph;
-no compiler or SDK override is needed. The root workspace separately uses
-development-only LLVM toolchains for cross-compilation and regression fixtures.
+The consumer uses the default Wine registrations and explicitly registers LLVM
+0.8.26 as its C++ toolchain. The root workspace also uses LLVM as a development
+dependency for cross-compilation and regression fixtures. The extension test
+separately checks that a consumer without an LLVM declaration does not inherit it.
 No remote executor or runtime cache is used. Logs, output records and action graphs
 remain in the printed temporary directory and are uploaded by CI on failure.
 
@@ -190,7 +190,7 @@ external-repository mapping and alias-only data. The adapter case fails against
 The layout test also exercises a manifest whose payload entry points outside the
 runfiles directory, verifying that adjacent DLL lookup retains the logical layout.
 
-The pinned `@llvm` 0.7.6 macOS SDK URL returns 403. Both macOS supervisor
+The former `@llvm` 0.7.6 macOS SDK URL returned 403. Both macOS supervisor
 architectures were cross-compiled with a temporary root-module `osx.from_archive`
 override using [Apple's SDK 26.5 package](https://swcdn.apple.com/content/downloads/33/19/140-17812-A_21ZLMMLY4E/zu3xwktttpoe71qiawhzgzvqss6rovawsa/CLTools_macOSNMOS_SDK.pkg).
 The package was found through `hermetic-llvm`'s `tools/update_osx_sdk.py` catalog
@@ -198,10 +198,8 @@ parser, downloaded with HTTP 200, and its embedded SDK version and SHA-256 verif
 `debe353b27a13cd678b26ab216a040acf07b62c0639d8ac522df4ca07d121eb2`.
 For the override, set `type = "pkg"` and
 `strip_prefix = "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"`.
-This historical cross-compilation verification does not update the development
-LLVM dependency's default SDK URL. It affects contributors choosing that LLVM
-configuration, not consumers using another toolchain. The downstream smoke
-consumer now builds the supervisor with the installed compiler and SDK.
+LLVM 0.8.26 includes this SDK in its defaults; the root and downstream smoke
+workspaces no longer need a local SDK override.
 
 The published macOS ARM64 archive runs independent ARM64 and amd64 fixtures through Bazel
 on macOS 26.5.2 with the SDK override above. The release manifest records SDK 26.5,

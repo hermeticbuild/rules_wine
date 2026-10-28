@@ -64,9 +64,8 @@ Bazel wrappers were exercised on 26.5.2. This does not prove execution on exact
 26.5. The macOS archive is an unsigned command-line runtime, not a notarized app.
 See release manifests, `DISTRIBUTION.md` and [testing notes](tests/README.md).
 
-The repository's development LLVM configuration has an unavailable macOS SDK URL;
-its workaround is in the [testing notes](tests/README.md). This does not affect
-consumers using their own compiler configuration.
+Development and E2E workspaces explicitly select LLVM 0.8.26, including its
+macOS SDK. This compiler choice is not inherited by downstream users.
 
 ## Executable adapters
 

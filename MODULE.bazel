@@ -8,7 +8,7 @@ bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_cc", version = "0.2.18")
 bazel_dep(name = "hermetic_launcher", version = "0.0.16")
 
-bazel_dep(name = "llvm", version = "0.7.6", dev_dependency = True)
+bazel_dep(name = "llvm", version = "0.8.26", dev_dependency = True)
 
 register_toolchains(
     "@llvm//toolchain:all",
