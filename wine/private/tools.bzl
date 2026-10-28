@@ -6,7 +6,15 @@ def _dirname(file):
     return file.dirname
 
 def include_args(ctx, args, tools, files, output):
-    """Disable host includes and add directories of declared compiler inputs."""
+    """Disable host includes and add directories of declared compiler inputs.
+
+    Args:
+        ctx: Generating rule context with package-relative includes.
+        args: Action Args receiving deferred include paths.
+        tools: Selected WineToolsInfo.
+        files: Declared source, header, import and asset Files.
+        output: Action output File providing its mapped generated root.
+    """
     args.add("--nostdinc")
     args.add_all(files + [tools.include], map_each = _dirname, format_each = "-I%s", uniquify = True)
     package = ctx.label.package
