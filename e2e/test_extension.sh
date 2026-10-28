@@ -8,7 +8,7 @@ cp "$root/.bazelversion" "$scratch/.bazelversion"
 printf 'Verification workspace: %s\n' "$scratch"
 mkdir "$scratch/first" "$scratch/second"
 printf '\n' > "$scratch/BUILD.bazel"
-printf 'import %s/.bazelrc\n' "$rules" > "$scratch/.bazelrc"
+printf 'common --enable_bzlmod\n' > "$scratch/.bazelrc"
 dependency() {
   printf 'module(name = "%s", version = "0.1.0")\nbazel_dep(name = "rules_wine", version = "0.1.0")\nwine = use_extension("@rules_wine//wine/extension:wine.bzl", "wine")\n%s\nuse_repo(wine, "wine_toolchains")\n' "$1" "$2" > "$scratch/$1/MODULE.bazel"
   printf '\n' > "$scratch/$1/BUILD.bazel"
@@ -31,6 +31,9 @@ trap 'bazel shutdown >/dev/null 2>&1' EXIT
 dependency first ''
 dependency second ''
 root_module ''
+# Unlike the runtime fixture, this consumer deliberately selects no compiler.
+bazel mod graph --lockfile_mode=off --output=json > modules.json
+jq -e 'all(.. | objects; .name != "llvm")' modules.json >/dev/null
 query default.txt
 grep -q 'hermeticbuild Wine 11.20.1 linux-amd64' default.txt
 grep -q 'hermeticbuild Wine 11.20.1 linux-arm64' default.txt

@@ -3,6 +3,13 @@ module(name = "rules_wine_consumer")
 bazel_dep(name = "rules_wine", version = "0.1.0")
 bazel_dep(name = "platforms", version = "1.1.0")
 
+bazel_dep(name = "llvm", version = "0.8.26", dev_dependency = True)
+
+register_toolchains(
+    "@llvm//toolchain:all",
+    dev_dependency = True,
+)
+
 local_path_override(
     module_name = "rules_wine",
     path = "../..",
@@ -12,15 +19,3 @@ wine = use_extension("@rules_wine//wine/extension:wine.bzl", "wine")
 use_repo(wine, "wine_toolchains")
 
 register_toolchains("@wine_toolchains//:all")
-
-# LLVM 0.7.6's default Apple SDK URL is unavailable. Only the compiler SDK
-# is overridden; Wine still comes from the unmodified default extension.
-bazel_dep(name = "llvm", version = "0.7.6")
-
-osx = use_extension("@llvm//extensions:osx.bzl", "osx")
-osx.from_archive(
-    sha256 = "debe353b27a13cd678b26ab216a040acf07b62c0639d8ac522df4ca07d121eb2",
-    strip_prefix = "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
-    type = "pkg",
-    urls = ["https://swcdn.apple.com/content/downloads/33/19/140-17812-A_21ZLMMLY4E/zu3xwktttpoe71qiawhzgzvqss6rovawsa/CLTools_macOSNMOS_SDK.pkg"],
-)
