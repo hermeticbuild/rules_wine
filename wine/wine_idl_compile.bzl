@@ -1,11 +1,14 @@
 """Generate explicitly selected IDL outputs with native widl."""
 
-load("//wine/private:tools.bzl", "TOOLS_TOOLCHAIN", "include_args", "preprocessor_args", "typelib_args")
+_TOOLS_TOOLCHAIN = Label("//wine:tools_toolchain_type")
 
 _KINDS = {"header": "-h", "typelib": "-t", "client": "-c", "server": "-s", "proxy": "-p", "iid": "-u"}
 
+def _dirname(file):
+    return file.dirname
+
 def _impl(ctx):
-    tools = ctx.toolchains[TOOLS_TOOLCHAIN].wine_tools
+    tools = ctx.toolchains[_TOOLS_TOOLCHAIN].wine_tools
     if ctx.target_platform_has_constraint(ctx.attr._x86_64[platform_common.ConstraintValueInfo]):
         cpu = "x86_64"
     elif ctx.target_platform_has_constraint(ctx.attr._aarch64[platform_common.ConstraintValueInfo]):
@@ -21,9 +24,28 @@ def _impl(ctx):
         outputs.append(output)
         args = ctx.actions.args()
         args.add_all(["-b", cpu + "-w64-mingw32", "-Oif", flag])
-        include_args(ctx, args, tools, inputs, output)
-        typelib_args(args, [file for file in ctx.files.imports if file.extension == "tlb"] + [tools.typelibs[cpu]])
-        preprocessor_args(args, ctx.attr.defines)
+        args.add("--nostdinc")
+        args.add_all(inputs + [tools.include], map_each = _dirname, format_each = "-I%s", uniquify = True)
+        package = ctx.label.package
+        includes = ctx.attr.includes
+        workspace_root = ctx.label.workspace_root
+        for directory in includes:
+            if directory.startswith("/") or (len(directory) > 1 and directory[1] == ":") or "\\" in directory or ".." in directory.split("/"):
+                fail("includes entries must be package-relative slash-separated directories without '..': " + directory)
+        args.add_all([
+            "/".join([part for part in [workspace_root, package, directory] if part]) or "."
+            for directory in includes
+        ], format_each = "-I%s")
+
+        def generated_roots(file):
+            return [
+                "/".join([part for part in [file.root.path, workspace_root, package, directory] if part])
+                for directory in includes
+            ]
+
+        args.add_all([output], map_each = generated_roots, allow_closure = True, format_each = "-I%s")
+        args.add_all([file for file in ctx.files.imports if file.extension == "tlb"] + [tools.typelibs[cpu]], map_each = _dirname, format_each = "-L%s", uniquify = True)
+        args.add_all(ctx.attr.defines, format_each = "-D%s")
         if kind != "header" and ctx.outputs.header:
             args.add("-H", ctx.outputs.header.basename)
         args.add("-o", output)
@@ -33,7 +55,7 @@ def _impl(ctx):
             arguments = [args],
             inputs = depset(inputs, transitive = [tools.files]),
             outputs = [output],
-            toolchain = TOOLS_TOOLCHAIN,
+            toolchain = _TOOLS_TOOLCHAIN,
             mnemonic = "WineIdlCompile",
         )
     if not outputs:
@@ -66,5 +88,5 @@ Upstream __DATE__ and __TIME__ expand to wall-clock time; avoid them in cached b
         "_x86_64": attr.label(default = "@platforms//cpu:x86_64"),
         "_aarch64": attr.label(default = "@platforms//cpu:aarch64"),
     },
-    toolchains = [TOOLS_TOOLCHAIN],
+    toolchains = [_TOOLS_TOOLCHAIN],
 )

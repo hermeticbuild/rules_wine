@@ -1,12 +1,15 @@
 """Compile message definitions with native wmc."""
 
-load("//wine/private:tools.bzl", "TOOLS_TOOLCHAIN", "nls_args")
+_TOOLS_TOOLCHAIN = Label("//wine:tools_toolchain_type")
+
+def _dirname(file):
+    return file.dirname
 
 def _outputs(name, output_format, header):
     return {"default_header": name + ".h"} if output_format == "rc" and not header else {}
 
 def _impl(ctx):
-    tools = ctx.toolchains[TOOLS_TOOLCHAIN].wine_tools
+    tools = ctx.toolchains[_TOOLS_TOOLCHAIN].wine_tools
     args = ctx.actions.args()
     args.add_all(["-O", ctx.attr.output_format, "-U"])
     if ctx.attr.unicode:
@@ -19,7 +22,8 @@ def _impl(ctx):
         outputs.append(header)
     elif ctx.outputs.header:
         fail("wmc res mode does not emit a header; omit header or use output_format = rc")
-    nls_args(args, tools)
+    if tools.nls:
+        args.add_all([tools.nls], map_each = _dirname, format_each = "--nls-dir=%s")
     args.add("-o", ctx.outputs.out)
     args.add(ctx.file.src)
     ctx.actions.run(
@@ -27,7 +31,7 @@ def _impl(ctx):
         arguments = [args],
         inputs = depset([ctx.file.src], transitive = [tools.files]),
         outputs = outputs,
-        toolchain = TOOLS_TOOLCHAIN,
+        toolchain = _TOOLS_TOOLCHAIN,
         mnemonic = "WineMessageCompile",
     )
     return [DefaultInfo(files = depset(outputs))]
@@ -50,5 +54,5 @@ set unicode for UTF-16 input (-u), not UTF-8.
         "unicode": attr.bool(doc = "Read UTF-16 input. This is wmc -u, not wrc's UTF-8 option."),
     },
     outputs = _outputs,
-    toolchains = [TOOLS_TOOLCHAIN],
+    toolchains = [_TOOLS_TOOLCHAIN],
 )
