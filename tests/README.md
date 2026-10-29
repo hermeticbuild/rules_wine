@@ -1,245 +1,106 @@
-# Testing and maintenance
+# Tests and maintenance
 
-Run from the repository root. GitHub Actions runs the public APIs on native
-Linux amd64/ARM64, macOS ARM64 and Windows amd64/ARM64 runners, with Bazel 8.5.0
-and 9.3.1. The same downstream consumer runs locally:
+The root suite and each downstream module expose ordinary Bazel tests. Run from
+the repository root:
 
 ```sh
-e2e/test_runtime.sh
-USE_BAZEL_VERSION=8.5.0 e2e/test_runtime.sh
+bazel test //... --lockfile_mode=off
+(cd e2e/smoke && bazel test //... --lockfile_mode=off)
+(cd e2e/tools && bazel test //... --lockfile_mode=off)
+(cd e2e/tools_caller && bazel test //... --lockfile_mode=off)
+(cd e2e/starlark && bazel test //... --lockfile_mode=off)
+(cd e2e/custom_runtime && bazel test //... --lockfile_mode=off)
 ```
 
-The same consumer also exposes `//:x86_64_test` and `//:aarch64_test` for Bazel
-and BCR presubmits. Run them from `e2e/smoke` for the supported guest CPUs on
-your executor. These tests check the records from both APIs on Wine platforms
-and the direct action on Windows. For formatting and archive checks, see
-[releasing rules_wine](../docs/releasing.md).
+The root and custom-runtime suites require Linux x86_64 execution. The smoke and
+tools modules run on all five supported native executors. The Starlark module
+analyzes synthetic platforms without executing their placeholder programs.
 
-Use Bash (Git Bash on Windows), Bazel/Bazelisk and jq. The E2E module explicitly
-selects LLVM 0.8.26 and its SDKs. The script detects the
-native executor and checks Bazel's host constraints and the fixtures' PE headers.
-It tests amd64 on Linux amd64; ARM64 and amd64 on Linux/macOS ARM64; and the
-native guest CPU on Windows. Wine platforms exercise both `windows_actions.run`
-and `windows_binary`; Windows exercises the direct-action backend.
-
-On Windows ARM64, Git Bash and process architecture APIs can report x86_64
-because the shell itself runs under emulation. The script reads the hardware CPU
-from `Win32_Processor.Architecture` through PowerShell, then independently checks
-Bazel's host platform. Keep these checks separate: detecting the shell's CPU would
-select the wrong fixture, while trusting only Bazel would not verify that Bazel
-matches the runner.
-
-The [native CI run](https://github.com/hermeticbuild/rules_wine/actions/runs/40558541873)
-passed all 12 jobs at commit `4f19990`: ten runtime jobs (five executors × two
-Bazel versions) and two Linux regression jobs. The checked-in
-[workflow](../.github/workflows/test.yml) defines the runner matrix.
-
-Each combination checks generated input/output paths with spaces and Unicode,
-arguments, environment and child execution. Linux/macOS run with path mapping off
-and on. Windows runs without mapping: Bazel 8/9 have no local Windows sandbox
-strategy that supports mapped actions. Native Windows mapping needs a suitable
-remote executor and remains unverified.
-The consumer uses the default Wine registrations and explicitly registers LLVM
-0.8.26 as its C++ toolchain. The root workspace also uses LLVM as a development
-dependency for cross-compilation and regression fixtures. The extension test
-separately checks that a consumer without an LLVM declaration does not inherit it.
-No remote executor or runtime cache is used. Logs, output records and action graphs
-remain in the printed temporary directory and are uploaded by CI on failure.
-
-The separate Linux regression jobs retain the detailed lifecycle, runfiles,
-path-mapping collision, Starlark, extension and caller-supplied archive checks.
-They also run locally.
-For optional remote investigation, root-workspace Bazel commands accept
-`--config=remote`; BuildBuddy authentication belongs in your user config.
-
-## Behavior checks
+For root tests from another host, use the configured Linux remote worker:
 
 ```sh
-bazel test //tests:integration
-bazel build //tests:generate //tests:adapter_tool \
-  //tests:param_file \
-  //tests:additional_tools //tests:default_group //tests:default_group_tools \
-  //tests:external_tools //tests:distinct_actions \
-  --lockfile_mode=off
-bazel test //tests:argv_test --noenable_runfiles
+bazel test //... --config=remote --platforms=//platforms:linux_x86_64 --lockfile_mode=off
 ```
 
-These use independent Windows executables to check output generation, DLL loading,
-child processes, argument preservation, and generated/external data. The lifecycle
-test checks concurrent private
-prefixes, cancellation ownership, descendant cleanup, exit status, native Wine CPU
-rejection, malformed payloads, and unchanged input files. The layout test creates real symlinks because
-remote execution can materialize ordinary runfiles and hide local layout bugs.
-JSON decoding also checks escaped Unicode, multiple embedded path markers with
-surrounding text, and rejection of malformed configuration and path strings.
-The argv regression passes arguments through the generated launcher and asserts
-exact records for spaces, empty strings, Unicode, literal dollar/location strings,
-opaque options and leading `--config`/`--` arguments. Invocation arguments belong
-to the consumer; the adapter has no expression-expansion API. A source-built
-Windows consumer uses the standard C++ runfiles
-library through `windows_actions.run` with its `FilesToRunProvider` to verify
-apparent-repository mapping and alias-only runfiles. Bazel supplies the runfiles
-layout; the ruleset does not write a replacement manifest.
+BuildBuddy authentication belongs in your user configuration. Native E2E checks
+use local execution to verify the actual executor and its published archives.
 
-Inspect the generated JSON files as well as the test results. Use `bazel aquery`
-to inspect executables, platforms, declared tools and inputs. Native actions must
-invoke the PE directly without Wine inputs:
+## Coverage
+
+| Suite | Contract |
+| --- | --- |
+| Root | Wine lifecycle and cancellation ownership; DLL adjacency; exact arguments; direct and adapter runfiles; custom native compiler runfiles; generated paths and parameter files; both Windows RPC compilation ABIs |
+| `e2e/smoke` | Downstream runtime setup; action and executable-adapter APIs; generated input/output paths, arguments, environment and child execution |
+| `e2e/tools` | Compiler-free native message/resource/IDL generation; output contents; declared generated imports/assets; both output ABIs; Make variables and executable tools |
+| `e2e/tools_caller` | The same native generation from an external repository, including package-relative generated include roots |
+| `e2e/starlark` | Custom runtime/provider contracts, payload-platform errors, execution groups, executable tool selection independent of its build executor, input validation |
+| `e2e/custom_runtime` | A consumer-owned checksum-pinned archive and public toolchain registrations without the default Wine extension |
+
+Root tests and the runtime consumer explicitly select LLVM as a development
+compiler. The tools modules do not select a C/C++ compiler; their artifact
+checkers use Bash and standard shell utilities. Native Windows tests require
+Git Bash. CI's dependency-graph check additionally uses jq.
+
+The tools checkers remain native to the executor while their dependencies generate
+x86_64 and ARM64 Windows outputs. Generated RPC C is compiled only in the root
+suite, using the same IDL source as the downstream tools tests. The ARM64 compile
+fixture defines `__RPC_WIN64__` because MinGW's `rpc.h` omits ARM64 from that test.
+
+## CI and path mapping
+
+GitHub Actions runs both native consumers on Linux x86_64/ARM64, macOS ARM64 and
+Windows x86_64/ARM64, with Bazel 8.5.0 and 9.3.1. Linux/macOS ARM64 execute both
+ARM64 and x86_64 Windows payloads; other executors use their native payload CPU.
+Windows exercises direct actions; Linux/macOS also exercise the executable adapter.
+
+The runtime test checks the fixture's PE machine and Bazel's configured CPU
+against the actual host. On Windows ARM64, it reads `Win32_Processor.Architecture`
+through PowerShell because Git Bash may itself run under x86_64 emulation.
+
+The two Linux x86_64 jobs also run the root, Starlark, external-tools and custom
+archive suites. They verify optional path mapping with:
 
 ```sh
-bazel aquery //tests:generate --config=remote \
-  --extra_execution_platforms=//platforms:windows_x86_64
+bazel test //tests:argv_test //tests:mapping_test --config=mapped --lockfile_mode=off
+(cd e2e/smoke && bazel test //... --config=mapped --lockfile_mode=off)
+(cd e2e/tools && bazel test //... --config=mapped --lockfile_mode=off)
+(cd e2e/tools_caller && bazel test //... --config=mapped --lockfile_mode=off)
 ```
 
-## Consumers and Bazel versions
+The mapped root test checks collision fallback as well as the paths observed by
+the Windows program. Ordinary environment strings and file contents remain
+opaque. Mapping configurations scope opt-in to the ruleset's action mnemonics.
+
+Two expected-failure builds remain explicit CI checks: a resource with an
+undeclared asset and an IDL with an undeclared import. These exercise actual
+sandbox exclusion; analysis tests cannot catch an expected compiler action
+failure through a normal test dependency. All other assertions belong to Bazel
+test targets, and no test launches another Bazel invocation.
+
+Mapping is tested on Linux with both Bazel versions. Native macOS mapping is not
+part of the routine matrix. Local Windows has no mapping-capable sandbox;
+native Windows mapped execution requires a suitable remote worker and remains
+unverified. Cross-configuration cache reuse is not claimed.
+
+Formatting and extracted release-archive checks remain separate. Both Bazel
+versions build the published API documentation and run the extracted downstream
+consumer. BCR's platform subset and publication steps are documented in
+[releasing](../docs/releasing.md).
+
+## Fixture maintenance
 
 ```sh
-e2e/test_runtime.sh
-e2e/test_custom_archive.sh /absolute/path/to/wine-linux-amd64.tar.zst SHA256
-e2e/test_starlark.sh
-e2e/test_extension.sh
-e2e/test_path_mapping.sh
-```
-
-The consumer exercises the public module setup, action helper and binary adapter.
-The script tests a custom
-archive through `http_archive`; supplying an incorrect checksum fails fetching.
-Archives with a containing directory accept an optional third `strip_prefix` argument.
-Keep fixture compilers and test helpers out of production dependency paths.
-The Starlark and extension scripts retain their temporary workspaces for
-inspection. Each accepts an optional ruleset checkout path. The extension checks
-pinned defaults, shared extension usage, rejection of removed tags, native Windows
-runners, and switching between ordinary and dev-only usage. The custom archive
-consumer registers public toolchains without loading the default extension.
-The Starlark script checks distinct Aa/BB actions, aliases under `select()`, executable sidecar outputs,
-an external executable's data and expected payload-platform analysis errors.
-It also inspects the same adapter under x86_64 and ARM64 target platforms,
-checking the selected CPU and rejecting incompatible fixed prebuilts. ARM64
-checks inspect action graphs; they do not execute the synthetic runtime.
-The execution-group regression selects ARM64 Wine and x86_64 native Windows
-within one rule under both target CPUs. It checks the execution platforms, Wine
-configuration CPU, and backend-specific path arguments. A fixed-x86 action
-selects x86 execution even with an ARM64 target, and fails when only ARM64
-execution is available. The new public context API fails to load against
-`dbba164`, which still exposes architecture-specific runner types.
-
-Bazel 8.5.0 and 9.3.1 have been exercised. With Bazelisk, set
-`USE_BAZEL_VERSION` when running the common suite. Add `--lockfile_mode=off` to
-root-workspace commands when checking another Bazel major version to avoid
-rewriting the checked-in lockfile into that version's format.
-
-The path-mapping script runs real Wine actions with mapping enabled and disabled,
-including source-built Windows runfiles fixtures, executable adapters, generated
-PE and data paths, Unicode/braces, literal environment escaping and payload
-parameter files. Split-configured inputs with colliding mapped paths must trigger
-Bazel's unmapped fallback and preserve both inputs. Output records assert the
-paths actually seen by the Windows program; `aquery` checks action-owned JSON
-parameter files. The script reuses the root workspace's compiler outputs and
-preserves logs and records under the printed temporary directory. Run it with
-`USE_BAZEL_VERSION=8.5.0` and `USE_BAZEL_VERSION=9.3.1`.
-On baseline `fc1913e`, `//tests:param_file` fails with
-`--experimental_output_paths=strip --modify_execution_info=WindowsRun=+supports-path-mapping`
-because the supervisor receives the unmapped configuration path.
-
-Path mapping is opt-in per consuming action. Ordinary environment strings and
-paths embedded in arbitrary input/output files are not mapped. The tests exercise
-Bazel-generated response files, not a generic Wine response-file translator.
-Native Windows mapping runtime and cross-configuration cache reuse remain unverified.
-
-For the downstream smoke consumer, enable mapping with
-`--experimental_output_paths=strip '--modify_execution_info=WindowsRun|WineAdapterConsumer=+supports-path-mapping'`.
-Keep command-line opt-in scoped to these actions: the generic `Action` mnemonic
-also selects dependency actions, including LLVM actions that are not mapping-safe.
-
-## Source build and fixture maintenance
-
-```sh
-tests/compile_platforms.sh --config=remote
 tests/update_fixtures.sh --config=remote
 (cd tests/fixture && shasum -a 256 -c SHA256SUMS)
+tests/compile_platforms.sh --config=remote
 ```
 
-The supervisor builds from source for each executor and is not checked in. Fixture
-maintenance uses Bazel's declared compiler/toolchain for PE executables and the
-companion DLL. Lifecycle and argv verifiers build from source in the actual test
-execution configuration; no verifier binary is checked in. Keep fixture sources
-and checked-in Windows test binaries in sync.
+The fixture update script rebuilds checked-in Windows payloads and the companion
+DLL with the declared toolchain. Keep their sources and binaries in sync.
+The supervisor and test verifiers build from source. The optional cross-compile
+script also checks Intel macOS compilation for custom runtimes; CI does not
+claim Intel macOS execution.
 
-The supervisor uses `rules_cc`'s runfiles library for discovery and manifest
-parsing. Its `EnvVars()` are forwarded to the payload, with Wine path conversion.
-`hermetic_launcher` resolves the supervisor/configuration and forwards argv.
-Explicit action environment, Windows path markers and Wine lifecycle management
-remain supervisor responsibilities. The supervisor is Linux/macOS-only; its
-cross-compilation check covers those four OS/CPU combinations.
-
-## Verification boundaries
-
-The public Wine 11.20.2 archives are pinned by SHA-256 and preserve their complete
-installation layout. Linux distributions declare glibc 2.17 plus an available
-UTF-8 locale; these rules' native x86_64 and ARM64 tests use Ubuntu 24.04.
-Tests on newer workers do not re-establish the declared minimum libc version.
-
-Exercise both Linux defaults on native workers with:
-
-```sh
-bazel build --config=remote --extra_execution_platforms=//platforms:remote_linux_x86_64,//platforms:remote_linux_aarch64 //tests:generate //tests:generate_arm64
-jq -e '.child == "child-ok"' bazel-bin/tests/generate.json bazel-bin/tests/generate_arm64.json
-```
-
-The GitHub matrix verifies local Linux sandbox execution and native Windows
-x86_64/ARM64 direct actions. Windows checks include arguments, environment,
-generated inputs, child execution and action graphs without Wine dependencies.
-Intel macOS execution remains untested. Windows path mapping still requires a
-suitable remote executor and remains unverified.
-
-The source-built C++ runfiles fixture runs through both a direct
-`FilesToRunProvider` action and `windows_binary` as an action tool. Both verify
-external-repository mapping and alias-only data. The adapter case fails against
-`4ff2f7e` because its supervisor did not export the discovered runfiles environment.
-The layout test also exercises a manifest whose payload entry points outside the
-runfiles directory, verifying that adjacent DLL lookup retains the logical layout.
-
-The former `@llvm` 0.7.6 macOS SDK URL returned 403. Both macOS supervisor
-architectures were cross-compiled with a temporary root-module `osx.from_archive`
-override using [Apple's SDK 26.5 package](https://swcdn.apple.com/content/downloads/33/19/140-17812-A_21ZLMMLY4E/zu3xwktttpoe71qiawhzgzvqss6rovawsa/CLTools_macOSNMOS_SDK.pkg).
-The package was found through `hermetic-llvm`'s `tools/update_osx_sdk.py` catalog
-parser, downloaded with HTTP 200, and its embedded SDK version and SHA-256 verified:
-`debe353b27a13cd678b26ab216a040acf07b62c0639d8ac522df4ca07d121eb2`.
-For the override, set `type = "pkg"` and
-`strip_prefix = "Payload/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"`.
-LLVM 0.8.26 includes this SDK in its defaults; the root and downstream smoke
-workspaces no longer need a local SDK override.
-
-The published macOS ARM64 archive runs independent ARM64 and amd64 fixtures through Bazel
-on macOS 26.5.2 with the SDK override above. The release manifest records SDK 26.5,
-deployment target 26.5 and publisher-tested OS 26.6.2 separately; exact-minimum
-26.5 execution is not proven.
-
-Fresh prefixes emit Wine's `virtual_alloc_first_teb` assertion. The same archive
-reproduces it without the supervisor; initialization and tested ARM64/amd64 programs
-still succeed. Gatekeeper acceptance of quarantined downloads is unverified.
-The native runtime matrix includes the CPU-translation regression using only
-default extension registrations. It runs the checked-in amd64 PE and its child on
-ARM64 through both APIs, checks action placement and independently reads the PE CPU.
-Before removing the supervisor's payload CPU check, these actions fail with
-`payload PE machine does not match aarch64`.
-
-The checked-in downstream consumer uses no Rosetta or custom Wine registration.
-
-## Native developer tools
-
-Run `bash e2e/test_tools.sh` for a relocated downstream module with no C/C++
-toolchain. CI exercises all five native executors on Bazel 8.5 and 9.3. Checks
-inspect message-table IDs/text, RC/header outputs, Unicode resources, generated
-assets/imports, COM and RPC stubs, typelib signatures/GUIDs/imports, both Windows
-output ABIs and the action graph. Unix also checks undeclared imports/assets fail
-under sandboxing and compares mapped/unmapped actions. Native Windows mapping
-and undeclared-file isolation require a remote sandbox and are not tested locally.
-
-`bash e2e/test_tools_external.sh` repeats generation from an external repository,
-including package-relative source/generated include roots and nested outputs.
-`//tests:argv_test` also checks a custom native compiler's ordinary and alias
-runfiles through `wine_tools_toolchain`.
-
-The development-only `//tests:generated_rpc` target compiles generated headers
-and C stubs using LLVM's Windows SDK. ARM64 needs a fixture-only `__RPC_WIN64__`
-definition because the current MinGW `rpc.h` omits ARM64 from that macro's test.
+The native matrix does not establish minimum glibc or exact macOS deployment
+requirements. See [runtime limitations](../docs/runtime.md) and
+[native tools](../docs/tools.md) for the supported distribution boundaries.
