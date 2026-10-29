@@ -1,0 +1,41 @@
+# Upstream exports these Starlark libraries with public visibility.
+# buildifier: disable=bzl-visibility
+load("@hermetic_launcher//launcher/private:stub_finalizer_toolchain.bzl", "stub_finalizer_toolchain")
+
+# buildifier: disable=bzl-visibility
+load("@hermetic_launcher//launcher/private:stub_template_toolchain.bzl", "stub_template_toolchain")
+
+# Upstream publishes these prebuilts for standalone use but omits registrations.
+# This uses upstream's public-visibility private rules; remove when upstream
+# registers Windows ARM64 itself. Preserve its prebuilt/source-built selection.
+stub_template_toolchain(
+    name = "windows_arm64_template",
+    template_exe = "@runfiles_stub_aarch64_windows//file",
+)
+
+toolchain(
+    name = "windows_arm64_template_toolchain",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:aarch64",
+    ],
+    target_settings = ["@hermetic_launcher//launcher/private:stub_source_prebuilt"],
+    toolchain = ":windows_arm64_template",
+    toolchain_type = "@hermetic_launcher//launcher:template_toolchain_type",
+)
+
+stub_finalizer_toolchain(
+    name = "windows_arm64_finalizer",
+    finalizer = "@finalize_stub_aarch64_windows//file",
+)
+
+toolchain(
+    name = "windows_arm64_finalizer_toolchain",
+    exec_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:aarch64",
+    ],
+    target_settings = ["@hermetic_launcher//launcher/private:stub_source_prebuilt"],
+    toolchain = ":windows_arm64_finalizer",
+    toolchain_type = "@hermetic_launcher//launcher:finalizer_toolchain_type",
+)

@@ -20,4 +20,14 @@ for executor in selection_b selection_arm; do
     all(.actions[]; (.arguments | index("_main/unicode.rc")) == null)
   ' "$scratch/$executor.json" >/dev/null
 done
+# Both launcher components must exist for a native Windows ARM64 executor.
+bazel_cmd aquery 'deps(@rules_wine//wine:wmc)' --lockfile_mode=off --output=jsonproto \
+  --platforms=@rules_wine//platforms:windows_aarch64 \
+  --extra_execution_platforms=@rules_wine//platforms:windows_aarch64 \
+  > "$scratch/windows-arm64.json" 2> "$scratch/windows-arm64.log"
+jq -e '
+  any(.actions[]; (.executionPlatform // "" | endswith("//platforms:windows_aarch64")) and
+    any(.arguments[]?; contains("runfiles_stub_aarch64_windows")) and
+    any(.arguments[]?; contains("finalize_stub_aarch64_windows")))
+' "$scratch/windows-arm64.json" >/dev/null
 echo 'PASS: target-selected executable honors consumer executor CPU and custom worker constraints'

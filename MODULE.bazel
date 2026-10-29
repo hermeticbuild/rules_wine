@@ -11,6 +11,12 @@ bazel_dep(name = "nlohmann_json", version = "3.12.0.bcr.2")
 bazel_dep(name = "hermetic_launcher", version = "0.0.16")
 bazel_dep(name = "package_metadata", version = "0.0.6")
 
+# hermetic_launcher ships native Windows ARM64 binaries without registrations.
+launcher_dependencies = use_extension("@hermetic_launcher//launcher/private:extensions.bzl", "non_module_dependencies")
+use_repo(launcher_dependencies, "finalize_stub_aarch64_windows", "runfiles_stub_aarch64_windows")
+
+register_toolchains("//wine/private/launcher:all")
+
 bazel_dep(name = "buildifier_prebuilt", version = "8.2.1", dev_dependency = True)
 bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.2", dev_dependency = True)
 bazel_dep(name = "gazelle", version = "0.54.0", dev_dependency = True)
