@@ -1,9 +1,10 @@
+load("@bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@bazel_lib//lib:run_binary.bzl", "run_binary")
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_wine//wine:wine_idl_files.bzl", "wine_idl_files")
 load("@rules_wine//wine:wine_message_file.bzl", "wine_message_file")
 load("@rules_wine//wine:wine_resource_file.bzl", "wine_resource_file")
-load("configured_outputs.bzl", "configured_outputs")
 load("fixture.bzl", "generated_inputs")
 
 package(default_visibility = ["//visibility:public"])
@@ -137,11 +138,24 @@ config_setting(
 )
 
 [
-    configured_outputs(
+    platform_transition_filegroup(
+        name = cpu + "_generated",
+        testonly = True,
+        srcs = ["all_outputs"],
+        tags = ["manual"],
+        target_platform = "@rules_wine//platforms:windows_" + cpu,
+    )
+    for cpu in [
+        "x86_64",
+        "aarch64",
+    ]
+]
+
+[
+    copy_to_directory(
         name = cpu + "_outputs",
         testonly = True,
-        src = "all_outputs",
-        platform = "@rules_wine//platforms:windows_" + cpu,
+        srcs = [cpu + "_generated"],
     )
     for cpu in [
         "x86_64",
@@ -153,14 +167,11 @@ config_setting(
     sh_test(
         name = cpu + "_test",
         srcs = ["verify.sh"],
-        args = ["$(rlocationpath " + cpu + "_outputs/messages.h)"] + select({
+        args = ["$(rlocationpath " + cpu + "_outputs)"] + select({
             ":mapped_paths": ["strip"],
             "//conditions:default": ["off"],
         }),
-        data = [
-            cpu + "_outputs",
-            cpu + "_outputs/messages.h",
-        ],
+        data = [cpu + "_outputs"],
         deps = ["@rules_shell//shell/runfiles"],
     )
     for cpu in [
@@ -173,16 +184,12 @@ sh_test(
     name = "distinct_abis_test",
     srcs = ["verify_abis.sh"],
     args = [
-        "$(rlocationpath x86_64_outputs/example_p.c)",
-        "$(rlocationpath aarch64_outputs/example_p.c)",
-        "$(rlocationpath x86_64_outputs/rpc_c.c)",
-        "$(rlocationpath aarch64_outputs/rpc_c.c)",
+        "$(rlocationpath x86_64_outputs)",
+        "$(rlocationpath aarch64_outputs)",
     ],
     data = [
-        "aarch64_outputs/example_p.c",
-        "aarch64_outputs/rpc_c.c",
-        "x86_64_outputs/example_p.c",
-        "x86_64_outputs/rpc_c.c",
+        "aarch64_outputs",
+        "x86_64_outputs",
     ],
     deps = ["@rules_shell//shell/runfiles"],
 )

@@ -20,6 +20,7 @@ use_repo(launcher_dependencies, "finalize_stub_aarch64_windows", "runfiles_stub_
 register_toolchains("//wine/private/launcher:all")
 
 bazel_dep(name = "buildifier_prebuilt", version = "8.2.1", dev_dependency = True)
+bazel_dep(name = "bazel_skylib", version = "1.9.2", dev_dependency = True)
 bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.2", dev_dependency = True)
 bazel_dep(name = "gazelle", version = "0.54.0", dev_dependency = True)
 bazel_dep(name = "llvm", version = "0.8.26", dev_dependency = True)
