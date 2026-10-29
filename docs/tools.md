@@ -123,9 +123,8 @@ These compiler input definitions are not a replacement C/C++ Windows SDK.
 Upstream `wrc`/`widl` expand `__DATE__` and `__TIME__` using wall-clock time, even
 when command-line definitions attempt to override them. Avoid these macros in
 cached builds. `wmc` embeds its command line in RC/header comments; output roots
-and mapped paths can therefore change those comments. Normal fixtures are
-checked for stable content when repeated with the same action paths; this does
-not promise reproducibility for arbitrary source inputs.
+and mapped paths can therefore change those comments. These rules do not promise
+reproducibility for arbitrary source inputs.
 
 File arguments stay typed until expansion. Optional Bazel 8/9 path mapping can
 be enabled with `--experimental_output_paths=strip` and
