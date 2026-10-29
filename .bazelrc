@@ -5,3 +5,5 @@ common --test_output=errors
 # Existing user-level BuildBuddy authentication is inherited, never stored here.
 build:remote --remote_executor=grpcs://remote.buildbuddy.io
 build:remote --extra_execution_platforms=//platforms:remote_linux_x86_64
+build:mapped --experimental_output_paths=strip
+build:mapped --modify_execution_info=WindowsRun|AdapterTool|RunfilesFixture|RunfilesAdapterFixture=+supports-path-mapping

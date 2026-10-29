@@ -33,6 +33,54 @@ argv_record_test = rule(
     },
 )
 
+def _custom_tools_impl(_settings, _attr):
+    return {"//command_line_option:extra_toolchains": [str(Label("//tests:native_executable_runfiles_registration"))]}
+
+_custom_tools = transition(
+    implementation = _custom_tools_impl,
+    inputs = [],
+    outputs = ["//command_line_option:extra_toolchains"],
+)
+
+custom_tools_record_test = rule(
+    implementation = _records_impl,
+    test = True,
+    attrs = {
+        "records": attr.label_keyed_string_dict(mandatory = True, cfg = _custom_tools),
+        "_verify": attr.label(default = "//tests:argv_verify", executable = True, cfg = config.exec("test")),
+        "_allowlist_function_transition": attr.label(default = "@bazel_tools//tools/allowlists/function_transition_allowlist"),
+    },
+    exec_groups = {"test": exec_group(exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"])},
+)
+
+def _mapping_impl(ctx):
+    executable = ctx.actions.declare_file(ctx.label.name)
+    config = ctx.actions.declare_file(ctx.label.name + ".json")
+    files = ctx.files.mapped + ctx.files.collision + ctx.files.param + ctx.files.distinct
+    ctx.actions.symlink(output = executable, target_file = ctx.executable._verify, is_executable = True)
+    ctx.actions.write(config, json.encode({
+        "mapping": ctx.attr.mapped_paths,
+        "mapped": _runfile_path(ctx, ctx.file.mapped),
+        "collision": _runfile_path(ctx, ctx.file.collision),
+        "param": _runfile_path(ctx, ctx.file.param),
+        "distinct": [_runfile_path(ctx, file) for file in ctx.files.distinct],
+    }))
+    return [DefaultInfo(executable = executable, runfiles = ctx.runfiles(files = files + [config, ctx.executable._verify]))]
+
+mapping_record_test = rule(
+    implementation = _mapping_impl,
+    test = True,
+    attrs = {
+        "mapped": attr.label(allow_single_file = True, mandatory = True),
+        "collision": attr.label(allow_single_file = True, mandatory = True),
+        "param": attr.label(allow_single_file = True, mandatory = True),
+        "distinct": attr.label(mandatory = True),
+        "mapped_paths": attr.bool(),
+        "_verify": attr.label(default = "//tests:argv_verify", executable = True, cfg = config.exec("test")),
+    },
+    exec_groups = {"test": exec_group(exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"])},
+)
+
 def _two_actions_impl(ctx):
     runner = windows_actions.resolve(ctx)
     outputs = []
