@@ -1,8 +1,20 @@
 #!/usr/bin/env bash
-# Inspect compiler products; tools in this script are test-driver dependencies only.
+# Inspect the compiler products declared as this test's runfiles.
+set -uo pipefail; set +e; f=bazel_tools/tools/bash/runfiles/runfiles.bash
+source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
+  source "$(grep -sm1 "^$f " "${RUNFILES_MANIFEST_FILE:-/dev/null}" | cut -f2- -d' ')" 2>/dev/null || \
+  source "$0.runfiles/$f" 2>/dev/null || \
+  source "$(grep -sm1 "^$f " "$0.runfiles_manifest" | cut -f2- -d' ')" 2>/dev/null || \
+  source "$(grep -sm1 "^$f " "$0.exe.runfiles_manifest" | cut -f2- -d' ')" 2>/dev/null || \
+  { echo >&2 "ERROR: cannot find $f"; exit 1; }; f=; set -e
 set -euo pipefail
-bin=${1:?usage: verify_tools.sh bazel-bin}
-scratch=${2:?usage: verify_tools.sh bazel-bin scratch}
+bin=$(dirname "$(rlocation "$1")")
+scratch=$TEST_TMPDIR
+if [[ $2 == strip ]]; then
+  grep -q 'bazel-out/cfg/' "$bin/messages.rc"
+elif grep -q 'bazel-out/cfg/' "$bin/messages.rc"; then
+  exit 1
+fi
 hex() { od -An -tx1 -v "$1" | tr -d ' \n\r'; }
 resources() {
   od -An -tu1 -v "$1" | awk '

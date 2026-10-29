@@ -1,104 +1,12 @@
 load("@bazel_lib//lib:run_binary.bzl", "run_binary")
-load("@rules_wine//wine:tools_toolchain.bzl", "wine_tools_executable_toolchain")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_wine//wine:wine_idl_files.bzl", "wine_idl_files")
 load("@rules_wine//wine:wine_message_file.bzl", "wine_message_file")
 load("@rules_wine//wine:wine_resource_file.bzl", "wine_resource_file")
+load("configured_outputs.bzl", "configured_outputs")
 load("fixture.bzl", "generated_inputs")
 
 package(default_visibility = ["//visibility:public"])
-
-constraint_setting(name = "worker")
-
-constraint_value(
-    name = "worker_a",
-    constraint_setting = ":worker",
-)
-
-constraint_value(
-    name = "worker_b",
-    constraint_setting = ":worker",
-)
-
-platform(
-    name = "selection_a",
-    constraint_values = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-        ":worker_a",
-    ],
-)
-
-platform(
-    name = "selection_b",
-    constraint_values = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-        ":worker_b",
-    ],
-)
-
-platform(
-    name = "selection_arm",
-    constraint_values = [
-        "@platforms//os:linux",
-        "@platforms//cpu:aarch64",
-        ":worker_b",
-    ],
-)
-
-# Analysis-only placeholders identify custom selections; these tools never run.
-filegroup(
-    name = "selection_files",
-    srcs = [
-        "messages.mc",
-        "selection.tlb",
-        "unicode.rc",
-    ],
-)
-
-wine_tools_executable_toolchain(
-    name = "selection_tools_a",
-    include = "messages.mc",
-    aarch64_typelib = "selection.tlb",
-    files = "selection_files",
-    widl = "messages.mc",
-    wmc = "messages.mc",
-    wrc = "messages.mc",
-    x86_64_typelib = "selection.tlb",
-)
-
-wine_tools_executable_toolchain(
-    name = "selection_tools_b",
-    include = "unicode.rc",
-    aarch64_typelib = "selection.tlb",
-    files = "selection_files",
-    widl = "unicode.rc",
-    wmc = "unicode.rc",
-    wrc = "unicode.rc",
-    x86_64_typelib = "selection.tlb",
-)
-
-toolchain(
-    name = "selection_registration_a",
-    target_compatible_with = [":worker_a"],
-    toolchain = "selection_tools_a",
-    toolchain_type = "@rules_wine//wine:tools_executable_toolchain_type",
-)
-
-toolchain(
-    name = "selection_registration_b",
-    target_compatible_with = [":worker_b"],
-    toolchain = "selection_tools_b",
-    toolchain_type = "@rules_wine//wine:tools_executable_toolchain_type",
-)
-
-run_binary(
-    name = "selection",
-    outs = ["selection.out"],
-    exec_compatible_with = [":worker_a"],
-    tags = ["manual"],
-    tool = "@rules_wine//wine:widl",
-)
 
 platform(
     name = "unsupported_cpu",
@@ -114,6 +22,7 @@ wine_message_file(
     name = "messages",
     src = "messages.mc",
     out = "messages.rc",
+    tags = ["manual"],
 )
 
 wine_message_file(
@@ -121,6 +30,7 @@ wine_message_file(
     src = "messages.mc",
     out = "messages.res",
     output_format = "res",
+    tags = ["manual"],
 )
 
 wine_message_file(
@@ -128,12 +38,14 @@ wine_message_file(
     src = "messages.mc",
     out = "custom_messages.rc",
     header = "renamed_messages.h",
+    tags = ["manual"],
 )
 
 wine_resource_file(
     name = "inline_messages",
     src = "messages.rc",
     out = "inline_messages.res",
+    tags = ["manual"],
 )
 
 wine_message_file(
@@ -141,6 +53,7 @@ wine_message_file(
     src = "messages_utf16.mc",
     out = "unicode_messages.res",
     output_format = "res",
+    tags = ["manual"],
     unicode = True,
 )
 
@@ -155,6 +68,7 @@ wine_resource_file(
         "",
         "generated",
     ],
+    tags = ["manual"],
 )
 
 wine_idl_files(
@@ -162,6 +76,7 @@ wine_idl_files(
     src = "generated/sub/example.idl",
     header = "example.h",
     proxy = "example_p.c",
+    tags = ["manual"],
 )
 
 wine_idl_files(
@@ -178,15 +93,17 @@ wine_idl_files(
         "generated",
     ],
     proxy = "interfaces_p.c",
+    tags = ["manual"],
     typelib = "interfaces.tlb",
 )
 
 wine_idl_files(
     name = "rpc",
-    src = "rpc.idl",
+    src = "@rules_wine//tests:fixture/rpc.idl",
     client = "rpc_c.c",
     header = "tool_rpc.h",
     server = "rpc_s.c",
+    tags = ["manual"],
 )
 
 filegroup(
@@ -194,6 +111,7 @@ filegroup(
     srcs = [
         "custom_messages",
         "example",
+        "generated",
         "inline_messages",
         "interfaces",
         "makevar_messages",
@@ -210,6 +128,63 @@ filegroup(
         "run_unicode_resources",
         "unicode_messages",
     ],
+    tags = ["manual"],
+)
+
+config_setting(
+    name = "mapped_paths",
+    values = {"experimental_output_paths": "strip"},
+)
+
+[
+    configured_outputs(
+        name = cpu + "_outputs",
+        testonly = True,
+        src = "all_outputs",
+        platform = "@rules_wine//platforms:windows_" + cpu,
+    )
+    for cpu in [
+        "x86_64",
+        "aarch64",
+    ]
+]
+
+[
+    sh_test(
+        name = cpu + "_test",
+        srcs = ["verify.sh"],
+        args = ["$(rlocationpath " + cpu + "_outputs/messages.h)"] + select({
+            ":mapped_paths": ["strip"],
+            "//conditions:default": ["off"],
+        }),
+        data = [
+            cpu + "_outputs",
+            cpu + "_outputs/messages.h",
+        ],
+        deps = ["@rules_shell//shell/runfiles"],
+    )
+    for cpu in [
+        "x86_64",
+        "aarch64",
+    ]
+]
+
+sh_test(
+    name = "distinct_abis_test",
+    srcs = ["verify_abis.sh"],
+    args = [
+        "$(rlocationpath x86_64_outputs/example_p.c)",
+        "$(rlocationpath aarch64_outputs/example_p.c)",
+        "$(rlocationpath x86_64_outputs/rpc_c.c)",
+        "$(rlocationpath aarch64_outputs/rpc_c.c)",
+    ],
+    data = [
+        "aarch64_outputs/example_p.c",
+        "aarch64_outputs/rpc_c.c",
+        "x86_64_outputs/example_p.c",
+        "x86_64_outputs/rpc_c.c",
+    ],
+    deps = ["@rules_shell//shell/runfiles"],
 )
 
 genrule(
@@ -220,6 +195,7 @@ genrule(
         "makevars/messages.rc",
     ],
     cmd = '"$(WINE_WMC)" -U -i -H "$(location makevars/messages.h)" -o "$(location makevars/messages.rc)" "$(location messages.mc)"',
+    tags = ["manual"],
     toolchains = ["@rules_wine//wine:tools_toolchain_type"],
 )
 
@@ -239,6 +215,7 @@ run_binary(
         "$(location run/messages.rc)",
         "$(location messages.mc)",
     ],
+    tags = ["manual"],
     tool = "@rules_wine//wine:wmc",
 )
 
@@ -252,6 +229,7 @@ run_binary(
         "$(location run/messages.res)",
         "$(location run/messages.rc)",
     ],
+    tags = ["manual"],
     tool = "@rules_wine//wine:wrc",
 )
 
@@ -267,6 +245,7 @@ run_binary(
         "$(location run/interfaces.tlb)",
         "$(location makevars.idl)",
     ],
+    tags = ["manual"],
     tool = "@rules_wine//wine:widl",
 )
 
@@ -280,6 +259,7 @@ run_binary(
         "$(location run/unicode.res)",
         "$(location unicode.rc)",
     ],
+    tags = ["manual"],
     tool = "@rules_wine//wine:wrc",
 )
 
@@ -294,6 +274,7 @@ run_binary(
         "$(location run/quoted.res)",
         "$(location unicode.rc)",
     ],
+    tags = ["manual"],
     tool = "@rules_wine//wine:wrc",
 )
 
@@ -302,6 +283,7 @@ genrule(
     srcs = ["makevars/messages.rc"],
     outs = ["makevars/messages.res"],
     cmd = '"$(WINE_WRC)" -u -o "$@" "$(location makevars/messages.rc)"',
+    tags = ["manual"],
     toolchains = ["@rules_wine//wine:tools_toolchain_type"],
 )
 
@@ -310,6 +292,7 @@ genrule(
     srcs = ["makevars.idl"],
     outs = ["makevars/interfaces.tlb"],
     cmd = '"$(WINE_WIDL)" -b x86_64-w64-mingw32 -t -o "$@" "$(location makevars.idl)"',
+    tags = ["manual"],
     toolchains = ["@rules_wine//wine:tools_toolchain_type"],
 )
 
@@ -332,22 +315,6 @@ wine_idl_files(
     tags = ["manual"],
 )
 
-wine_message_file(
-    name = "bad_message",
-    src = "bad.mc",
-    out = "bad.rc",
-    tags = ["manual"],
-)
-
-wine_idl_files(
-    name = "qualified_import",
-    src = "qualified_import.idl",
-    header = "qualified_import.h",
-    imports = ["generated/sub/example.idl"],
-    includes = ["generated"],
-    tags = ["manual"],
-)
-
 wine_resource_file(
     name = "absolute_include",
     src = "resources.rc",
@@ -363,3 +330,9 @@ wine_resource_file(
     includes = ["C:/SDK"],
     tags = ["manual"],
 )
+
+exports_files([
+    "messages.mc",
+    "unicode.rc",
+    "selection.tlb",
+])

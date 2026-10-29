@@ -6,11 +6,13 @@ in the guides; the generated reference describes signatures and contracts.
 
 After changing `.bzl` files or their `load()` dependencies:
 
+The root test suite needs a Linux executor; see the [test prerequisites](../tests/README.md)
+for native and remote execution commands.
+
 ```sh
 bazel run //tools/gazelle:update
 bazel run //tools/gazelle:check
-bazel build //docs:api
-bash docs/package.sh /tmp/rules_wine.docs.tar.gz
+bazel test //...
 ```
 
 Gazelle runs only the Skylib Starlark plugin and only scans `wine/`. Its generated
@@ -18,6 +20,7 @@ Gazelle runs only the Skylib Starlark plugin and only scans `wine/`. Its generat
 targets in public packages. Extraction checks the declared load dependencies.
 `docs/BUILD.bazel` selects the public entry points included in the release.
 When adding one, update that list and the archive check's expected file list.
+To package the reference locally, run `bash docs/package.sh /tmp/rules_wine.docs.tar.gz`.
 
 Two dependency lists use Gazelle's `# keep`: the launcher library has an upstream
 `lib_bzl` target name that the plugin cannot infer, and Bazel's `http.bzl` needs

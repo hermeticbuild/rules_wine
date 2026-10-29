@@ -2,31 +2,53 @@ load("@bazel_lib//lib:run_binary.bzl", "run_binary")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//tests:adapter_action.bzl", "adapter_action", "runfiles_action", "runfiles_adapter_action")
-load("//tests:argv.bzl", "alias_data", "argv_record_test", "two_actions")
+load("//tests:argv.bzl", "alias_data", "argv_record_test", "custom_tools_record_test", "mapping_record_test", "two_actions")
 load("//tests:native_tools_action.bzl", "native_tools_runfiles")
 load("//tests:param_action.bzl", "param_action")
 load("//tests:path_mapping.bzl", "mapping_action", "mapping_input", "mapping_payload", "mapping_variant")
-load("//tests:tools_action.bzl", "default_tools_action", "native_tools_action", "tools_action")
+load("//tests:tools_action.bzl", "default_tools_action", "tools_action")
 load("//tests:verify_test.bzl", "runtime_contract_test")
+load("//tests:windows_build_test.bzl", "windows_build_test")
 load("//wine:tools_toolchain.bzl", "wine_tools_executable_toolchain", "wine_tools_toolchain")
 load("//wine:windows_binary.bzl", "windows_binary")
+load("//wine:wine_idl_files.bzl", "wine_idl_files")
 
-# Compile generated C/headers with the development-only LLVM Windows SDK.
+wine_idl_files(
+    name = "rpc",
+    src = "fixture/rpc.idl",
+    client = "rpc_c.c",
+    header = "tool_rpc.h",
+    server = "rpc_s.c",
+    tags = ["manual"],
+)
+
 cc_library(
     name = "generated_rpc",
     testonly = True,
     srcs = [
-        "//e2e/tools:rpc_c.c",
-        "//e2e/tools:rpc_s.c",
+        "rpc_c.c",
+        "rpc_s.c",
     ],
-    hdrs = ["//e2e/tools:tool_rpc.h"],
-    # Current MinGW rpc.h omits ARM64 from its __RPC_WIN64__ definition.
-    # Windows ARM64 RPC has 64-bit pointers, as required by WIDL's stubs.
+    hdrs = ["tool_rpc.h"],
+    # MinGW rpc.h omits ARM64 from its __RPC_WIN64__ definition.
     defines = select({
         "@platforms//cpu:aarch64": ["__RPC_WIN64__"],
         "//conditions:default": [],
     }),
+    tags = ["manual"],
 )
+
+[
+    windows_build_test(
+        name = "rpc_" + cpu + "_test",
+        library = "generated_rpc",
+        platform = "@llvm//platforms:windows_" + cpu,
+    )
+    for cpu in [
+        "x86_64",
+        "aarch64",
+    ]
+]
 
 cc_binary(
     name = "companion_build",
@@ -34,6 +56,7 @@ cc_binary(
     srcs = ["fixture/companion.c"],
     linkopts = ["-Wl,--no-insert-timestamp"],
     linkshared = True,
+    target_compatible_with = ["@platforms//os:windows"],
 )
 
 cc_binary(
@@ -47,6 +70,7 @@ cc_binary(
         "-Werror",
     ],
     linkopts = ["-lshell32"],
+    target_compatible_with = ["@platforms//os:windows"],
 )
 
 cc_binary(
@@ -162,13 +186,12 @@ run_binary(
     tool = "//wine:wrc",
 )
 
-argv_record_test(
+custom_tools_record_test(
     name = "tool_binary_runfiles_test",
     records = {"tool_binary_runfiles": json.encode([
         "mapped external",
         "alias-only data",
     ])},
-    tags = ["manual"],
 )
 
 windows_binary(
@@ -189,15 +212,6 @@ default_tools_action(
     binary = "fixture/fixture_x86_64.exe",
 )
 
-native_tools_action(
-    name = "generate_arm64",
-    binary = "fixture/fixture_aarch64.exe",
-    exec_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:aarch64",
-    ],
-)
-
 alias_data(
     name = "aliases",
     src = "data/alias-only.txt",
@@ -211,6 +225,7 @@ two_actions(
 argv_record_test(
     name = "argv_test",
     records = {
+        "default_group_tools": json.encode(["runfile with spaces and Unicode: café"]),
         "makevar_runfiles": json.encode([
             "mapped external",
             "alias-only data",
@@ -275,6 +290,9 @@ runtime_contract_test(
 
 exports_files(
     [
+        "runtime_consumer.bzl",
+        "verify_runtime.sh",
+        "fixture/rpc.idl",
         "fixture/fixture_x86_64.exe",
         "fixture/fixture_aarch64.exe",
     ],
@@ -293,19 +311,6 @@ tools_action(
     binary = "fixture/fixture_x86_64.exe",
     extra = "runfiles_binary",
     extra_data = "@platforms//:LICENSE",
-)
-
-tools_action(
-    name = "additional_tools",
-    testonly = True,
-    additional_tools = True,
-    binary = "fixture/fixture_x86_64.exe",
-    extra = "runfiles_binary",
-)
-
-default_tools_action(
-    name = "default_group",
-    binary = "fixture/fixture_x86_64.exe",
 )
 
 default_tools_action(
@@ -347,4 +352,21 @@ mapping_action(
     src = "mapping_input",
     binary = "mapping_payload",
     collision = True,
+)
+
+config_setting(
+    name = "mapped_output_paths",
+    values = {"experimental_output_paths": "strip"},
+)
+
+mapping_record_test(
+    name = "mapping_test",
+    collision = "mapping_collision",
+    distinct = "distinct_actions",
+    mapped = "mapped_paths",
+    mapped_paths = select({
+        ":mapped_output_paths": True,
+        "//conditions:default": False,
+    }),
+    param = "param_file",
 )

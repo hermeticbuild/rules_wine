@@ -7,20 +7,23 @@ supervisor source, not another Wine build.
 
 ## Local checks
 
+The root test suite needs a Linux executor; see the [test prerequisites](../tests/README.md)
+for native and remote execution commands. The E2E suites use the local executor.
+
 ```sh
 bazel run //.github/workflows:buildifier.check
 bazel run //tools/gazelle:check
-bazel build //docs:api
-e2e/test_runtime.sh
-(cd e2e/smoke && bazel test //:x86_64_test)
+bazel test //...
+(cd e2e/smoke && bazel test //...)
+(cd e2e/tools && bazel test //...)
 .github/workflows/check_archive.sh
 ```
 
 `check_archive.sh` packages **HEAD**, extracts it into a temporary directory and
 runs the downstream test there. Commit changes before running it. It uses the
 same `release_prep.sh` as the release workflow and leaves the archive, notes and
-test workspace at the printed path. On ARM64 Linux/macOS, also run
-`//:aarch64_test`; on Windows ARM64 use that target instead of `//:x86_64_test`.
+test workspace at the printed path. The smoke suite selects compatible guest CPUs
+for each executor, including x86_64 translation on Linux/macOS ARM64.
 The E2E module selects LLVM and its SDKs explicitly. Full native platform and
 Bazel-version coverage runs in GitHub Actions.
 
@@ -50,9 +53,8 @@ the configuration or credentials and rerun the failed jobs while the release is
 still a draft. Do not move a published tag or replace a published archive.
 
 Keep the two reusable release/publish workflows on explicit version tags. BCR's
-SLSA verifier rejects bare commit SHAs in their signed workflow identities. The
-0.1.0 submission exposed this incompatibility; 0.1.1 uses tags pointing to the
-same workflow revisions. Ordinary action steps remain pinned by commit SHA.
+SLSA verifier rejects bare commit SHAs in their signed workflow identities.
+Ordinary action steps remain pinned by commit SHA.
 
 For a local packaging dry run, from an empty output directory:
 
@@ -80,6 +82,5 @@ baseline is not claimed to satisfy Wine's macOS 26.5 deployment minimum, so macO
 Wine execution is not included in the BCR presubmit. These tests do not prove the
 minimum Linux glibc or exact macOS deployment baseline.
 
-Before the first release, PR CI establishes formatting, archive layout and local
-downstream behavior. Signing, release upload and the actual BCR submission can
-only be verified during a real release; they are not exercised by PR workflows.
+PR CI checks formatting, archive layout and downstream behavior. Signing, release
+upload and BCR submission run only during release publication.

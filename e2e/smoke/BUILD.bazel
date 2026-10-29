@@ -1,6 +1,11 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@rules_wine//tests:runtime_consumer.bzl", "consumer")
 load("@rules_wine//wine:windows_binary.bzl", "windows_binary")
-load(":consumer.bzl", "consumer")
+
+config_setting(
+    name = "mapped_paths",
+    values = {"experimental_output_paths": "strip"},
+)
 
 config_setting(
     name = "windows_arm64",
@@ -14,12 +19,27 @@ config_setting(
     sh_test(
         name = cpu + "_test",
         size = "small",
-        srcs = ["verify.sh"],
-        args = ["$(rlocationpath :action_" + cpu + ")"] + select({
+        srcs = ["@rules_wine//tests:verify_runtime.sh"],
+        args = [
+            cpu,
+            "$(rlocationpath @rules_wine//tests:fixture/fixture_" + cpu + ".exe)",
+        ] + select({
+            ":mapped_paths": ["strip"],
+            "//conditions:default": ["off"],
+        }) + select({
+            "@platforms//os:windows": ["windows"],
+            "//conditions:default": ["wine"],
+        }) + select({
+            "@platforms//cpu:aarch64": ["aarch64"],
+            "//conditions:default": ["x86_64"],
+        }) + ["$(rlocationpath :action_" + cpu + ")"] + select({
             "@platforms//os:windows": [],
             "//conditions:default": ["$(rlocationpath :adapter_" + cpu + ")"],
         }),
-        data = ["action_" + cpu] + select({
+        data = [
+            "action_" + cpu,
+            "@rules_wine//tests:fixture/fixture_" + cpu + ".exe",
+        ] + select({
             "@platforms//os:windows": [],
             "//conditions:default": ["adapter_" + cpu],
         }),
@@ -39,6 +59,7 @@ config_setting(
     windows_binary(
         name = "binary_" + cpu,
         binary = "@rules_wine//tests:fixture/fixture_" + cpu + ".exe",
+        tags = ["manual"],
     )
     for cpu in [
         "x86_64",
@@ -50,6 +71,7 @@ config_setting(
     consumer(
         name = "action_" + cpu,
         binary = "@rules_wine//tests:fixture/fixture_" + cpu + ".exe",
+        tags = ["manual"],
     )
     for cpu in [
         "x86_64",
@@ -62,6 +84,7 @@ config_setting(
         name = "adapter_" + cpu,
         adapter = "binary_" + cpu,
         binary = "@rules_wine//tests:fixture/fixture_" + cpu + ".exe",
+        tags = ["manual"],
     )
     for cpu in [
         "x86_64",

@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         bazel: ['8.5.0', '9.3.1']
-        platform: [linux-amd64, linux-arm64, macos-arm64, windows-amd64, windows-arm64, regressions]
+        platform: [linux-amd64, linux-arm64, macos-arm64, windows-amd64, windows-arm64]
         include:
           - platform: linux-amd64
             runner: ubuntu-24.04
@@ -29,8 +29,6 @@ jobs:
             runner: windows-2025
           - platform: windows-arm64
             runner: windows-11-arm
-          - platform: regressions
-            runner: ubuntu-24.04
     env:
       USE_BAZEL_VERSION: ${{ matrix.bazel }}
     defaults:
@@ -43,54 +41,54 @@ jobs:
         with:
           bazelisk-version: '1.30.0'
       - name: Execute default runtimes through the public APIs
-        if: matrix.platform != 'regressions'
-        run: bash e2e/test_runtime.sh
+        working-directory: e2e/smoke
+        run: bazel test //... --lockfile_mode=off --test_env=RULES_WINE_EXPECTED_CPU=${{ contains(matrix.platform, 'arm64') && 'aarch64' || 'x86_64' }}
       - name: Execute native developer tools without a consumer compiler
-        if: matrix.platform != 'regressions'
-        run: bash e2e/test_tools.sh
-      - name: Lifecycle, runfiles and argument regressions
-        if: matrix.platform == 'regressions'
+        working-directory: e2e/tools
+        run: bazel test //... --lockfile_mode=off
+      - name: Runtime contracts, custom runfiles and generated RPC compilation
+        if: matrix.platform == 'linux-amd64'
+        run: bazel test //... --lockfile_mode=off
+      - name: Optional path mapping
+        if: matrix.platform == 'linux-amd64'
         run: |
-          bazel test //tests:integration --lockfile_mode=off
-          bazel test //tests:tool_binary_runfiles_test --extra_toolchains=//tests:native_executable_runfiles_registration --lockfile_mode=off
-      - name: Path mapping regressions
-        if: matrix.platform == 'regressions'
-        run: bash e2e/test_path_mapping.sh
-      - name: Compile generated RPC source with a consumer-owned Windows SDK
-        if: matrix.platform == 'regressions'
+          bazel test //tests:argv_test //tests:mapping_test --config=mapped --lockfile_mode=off
+          (cd e2e/smoke && bazel test //... --config=mapped --lockfile_mode=off)
+          (cd e2e/tools && bazel test //... --config=mapped --lockfile_mode=off)
+      - name: Starlark and execution-platform contracts
+        if: matrix.platform == 'linux-amd64'
+        working-directory: e2e/starlark
+        run: bazel test //... --lockfile_mode=off
+      - name: External module generation and compiler-free dependency graph
+        if: matrix.platform == 'linux-amd64'
+        working-directory: e2e/tools_caller
         run: |
-          bazel build //tests:generated_rpc --lockfile_mode=off --platforms=@llvm//platforms:windows_x86_64
-          bazel build //tests:generated_rpc --lockfile_mode=off --platforms=@llvm//platforms:windows_aarch64
-      - name: Starlark and module extension contracts
-        if: matrix.platform == 'regressions'
-        run: |
-          bash e2e/test_starlark.sh
-          bash e2e/test_extension.sh
-          bash e2e/test_tools_external.sh
-          bash e2e/test_tools_selection.sh
+          bazel test //... --lockfile_mode=off
+          bazel test //... --config=mapped --lockfile_mode=off
+          bazel mod graph --lockfile_mode=off --output=json > modules.json
+          jq -e 'all(.. | objects; .name != "llvm")' modules.json
       - name: Caller-supplied archive through public toolchains
-        if: matrix.platform == 'regressions'
+        if: matrix.platform == 'linux-amd64'
+        working-directory: e2e/custom_runtime
+        run: bazel test //... --lockfile_mode=off
+      - name: Undeclared assets and imports stay outside the sandbox
+        if: matrix.platform == 'linux-amd64'
+        working-directory: e2e/tools
         run: |
-          curl --fail --location --retry 3 \
-            https://github.com/hermeticbuild/wine-prebuilt/releases/download/11.20.2/wine-linux-amd64-11.20.2.tar.zst \
-            -o "$RUNNER_TEMP/custom-wine.tar.zst"
-          bash e2e/test_custom_archive.sh "$RUNNER_TEMP/custom-wine.tar.zst" \
-            5fb0f5f32a305873337e0202638acc64f59690c7a0184a6ea6a0164a79e31dc7
-      - name: Preserve runtime failure logs
-        if: failure() && matrix.platform != 'regressions'
+          if bazel build //:missing_asset --lockfile_mode=off > "$RUNNER_TEMP/missing-asset.log" 2>&1; then
+            echo 'Undeclared asset unexpectedly available'; exit 1
+          fi
+          grep -q 'payload.txt' "$RUNNER_TEMP/missing-asset.log"
+          if bazel build //:missing_import --lockfile_mode=off > "$RUNNER_TEMP/missing-import.log" 2>&1; then
+            echo 'Undeclared import unexpectedly available'; exit 1
+          fi
+          grep -q 'example.idl' "$RUNNER_TEMP/missing-import.log"
+      - name: Preserve failure logs
+        if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: logs-${{ matrix.platform }}-${{ matrix.bazel }}
           path: |
-            ${{ runner.temp }}/rules-wine-*/*.log
-            ${{ runner.temp }}/rules-wine-*/*.json
-            ${{ runner.temp }}/rules-wine-*/*.txt
-      - name: Preserve regression failure logs
-        if: failure() && matrix.platform == 'regressions'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: logs-regressions-${{ matrix.bazel }}
-          path: |
-            /tmp/rules-wine-*/*.log
-            /tmp/rules-wine-*/*.json
             bazel-testlogs/**/test.log
+            e2e/*/bazel-testlogs/**/test.log
+            ${{ runner.temp }}/missing-*.log

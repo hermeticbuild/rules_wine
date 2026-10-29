@@ -1,5 +1,8 @@
 common --enable_bzlmod
 common --test_output=errors
 common --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+common --test_output=errors
+build:mapped --experimental_output_paths=strip
+build:mapped --modify_execution_info=WindowsRun|WineAdapterConsumer=+supports-path-mapping
 build:remote --remote_executor=grpcs://remote.buildbuddy.io
 build:remote --extra_execution_platforms=@rules_wine//platforms:remote_linux_x86_64
