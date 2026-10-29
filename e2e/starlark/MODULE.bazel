@@ -1,6 +1,6 @@
 module(name = "wine_contracts")
 
-bazel_dep(name = "rules_wine", version = "0.1.2")
+bazel_dep(name = "rules_wine", version = "0.1.3")
 local_path_override(
     module_name = "rules_wine",
     path = "../..",
