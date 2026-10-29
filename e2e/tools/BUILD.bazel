@@ -1,9 +1,104 @@
+load("@bazel_lib//lib:run_binary.bzl", "run_binary")
+load("@rules_wine//wine:tools_toolchain.bzl", "wine_tools_executable_toolchain")
 load("@rules_wine//wine:wine_idl_compile.bzl", "wine_idl_compile")
 load("@rules_wine//wine:wine_message_compile.bzl", "wine_message_compile")
 load("@rules_wine//wine:wine_resource_compile.bzl", "wine_resource_compile")
 load("fixture.bzl", "generated_inputs")
 
 package(default_visibility = ["//visibility:public"])
+
+constraint_setting(name = "worker")
+
+constraint_value(
+    name = "worker_a",
+    constraint_setting = ":worker",
+)
+
+constraint_value(
+    name = "worker_b",
+    constraint_setting = ":worker",
+)
+
+platform(
+    name = "selection_a",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+        ":worker_a",
+    ],
+)
+
+platform(
+    name = "selection_b",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+        ":worker_b",
+    ],
+)
+
+platform(
+    name = "selection_arm",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:aarch64",
+        ":worker_b",
+    ],
+)
+
+# Analysis-only placeholders identify custom selections; these tools never run.
+filegroup(
+    name = "selection_files",
+    srcs = [
+        "messages.mc",
+        "selection.tlb",
+        "unicode.rc",
+    ],
+)
+
+wine_tools_executable_toolchain(
+    name = "selection_tools_a",
+    include = "messages.mc",
+    aarch64_typelib = "selection.tlb",
+    files = "selection_files",
+    widl = "messages.mc",
+    wmc = "messages.mc",
+    wrc = "messages.mc",
+    x86_64_typelib = "selection.tlb",
+)
+
+wine_tools_executable_toolchain(
+    name = "selection_tools_b",
+    include = "unicode.rc",
+    aarch64_typelib = "selection.tlb",
+    files = "selection_files",
+    widl = "unicode.rc",
+    wmc = "unicode.rc",
+    wrc = "unicode.rc",
+    x86_64_typelib = "selection.tlb",
+)
+
+toolchain(
+    name = "selection_registration_a",
+    target_compatible_with = [":worker_a"],
+    toolchain = "selection_tools_a",
+    toolchain_type = "@rules_wine//wine:tools_executable_toolchain_type",
+)
+
+toolchain(
+    name = "selection_registration_b",
+    target_compatible_with = [":worker_b"],
+    toolchain = "selection_tools_b",
+    toolchain_type = "@rules_wine//wine:tools_executable_toolchain_type",
+)
+
+run_binary(
+    name = "selection",
+    outs = ["selection.out"],
+    exec_compatible_with = [":worker_a"],
+    tags = ["manual"],
+    tool = "@rules_wine//wine:widl",
+)
 
 platform(
     name = "unsupported_cpu",
@@ -108,6 +203,10 @@ filegroup(
         "messages",
         "resources",
         "rpc",
+        "run_messages",
+        "run_resources",
+        "run_typelib",
+        "run_unicode_resources",
         "unicode_messages",
     ],
 )
@@ -121,6 +220,66 @@ genrule(
     ],
     cmd = '"$(WINE_WMC)" -U -i -H "$(location makevars/messages.h)" -o "$(location makevars/messages.rc)" "$(location messages.mc)"',
     toolchains = ["@rules_wine//wine:tools_toolchain_type"],
+)
+
+run_binary(
+    name = "run_messages",
+    srcs = ["messages.mc"],
+    outs = [
+        "run/messages.h",
+        "run/messages.rc",
+    ],
+    args = [
+        "-U",
+        "-i",
+        "-H",
+        "$(location run/messages.h)",
+        "-o",
+        "$(location run/messages.rc)",
+        "$(location messages.mc)",
+    ],
+    tool = "@rules_wine//wine:wmc",
+)
+
+run_binary(
+    name = "run_resources",
+    srcs = ["run/messages.rc"],
+    outs = ["run/messages.res"],
+    args = [
+        "-u",
+        "-o",
+        "$(location run/messages.res)",
+        "$(location run/messages.rc)",
+    ],
+    tool = "@rules_wine//wine:wrc",
+)
+
+run_binary(
+    name = "run_typelib",
+    srcs = ["makevars.idl"],
+    outs = ["run/interfaces.tlb"],
+    args = [
+        "-b",
+        "x86_64-w64-mingw32",
+        "-t",
+        "-o",
+        "$(location run/interfaces.tlb)",
+        "$(location makevars.idl)",
+    ],
+    tool = "@rules_wine//wine:widl",
+)
+
+run_binary(
+    name = "run_unicode_resources",
+    srcs = ["unicode.rc"],
+    outs = ["run/unicode.res"],
+    args = [
+        "-u",
+        "-o",
+        "$(location run/unicode.res)",
+        "$(location unicode.rc)",
+    ],
+    tool = "@rules_wine//wine:wrc",
 )
 
 genrule(

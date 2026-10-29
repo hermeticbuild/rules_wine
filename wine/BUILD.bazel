@@ -1,4 +1,5 @@
 load("@bazel_lib//:bzl_library.bzl", "bzl_library")
+load("//wine/private:tool_binary.bzl", "wine_tool_binary")
 
 # gazelle:map_kind bzl_library bzl_library @bazel_lib//:bzl_library.bzl
 
@@ -7,6 +8,23 @@ package(default_visibility = ["//visibility:public"])
 toolchain_type(name = "runner_toolchain_type")
 
 toolchain_type(name = "tools_toolchain_type")
+
+toolchain_type(name = "tools_executable_toolchain_type")
+
+wine_tool_binary(
+    name = "wmc",
+    tool = "wmc",
+)
+
+wine_tool_binary(
+    name = "wrc",
+    tool = "wrc",
+)
+
+wine_tool_binary(
+    name = "widl",
+    tool = "widl",
+)
 
 exports_files([
     "actions.bzl",

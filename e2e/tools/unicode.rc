@@ -1,0 +1,6 @@
+#include <winresrc.h>
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+STRINGTABLE
+BEGIN
+    42 "Wine tools: café"
+END

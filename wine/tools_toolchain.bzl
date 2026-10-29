@@ -10,6 +10,7 @@ WineToolsInfo = provider(
         "include": "A header File whose parent is the bundled include directory.",
         "nls": "locale.nls File, or None for native Windows tools.",
         "typelibs": "Target CPU to bundled stdole2.tlb File dictionary.",
+        "runfiles": "Tool name to executable runfiles dictionary.",
     },
 )
 
@@ -25,6 +26,10 @@ def _impl(ctx):
         include = ctx.file.include,
         nls = ctx.file.nls,
         typelibs = {"x86_64": ctx.file.x86_64_typelib, "aarch64": ctx.file.aarch64_typelib},
+        runfiles = {
+            name: getattr(ctx.attr, name)[DefaultInfo].default_runfiles.merge(getattr(ctx.attr, name)[DefaultInfo].data_runfiles)
+            for name in ["wmc", "wrc", "widl"]
+        },
     )
     return [
         info,
@@ -36,6 +41,18 @@ def _impl(ctx):
         }),
         DefaultInfo(files = info.files),
     ]
+
+def _attrs(cfg):
+    return {
+        "wmc": attr.label(executable = True, allow_single_file = True, cfg = cfg, mandatory = True, doc = "Native wmc executable."),
+        "wrc": attr.label(executable = True, allow_single_file = True, cfg = cfg, mandatory = True, doc = "Native wrc executable."),
+        "widl": attr.label(executable = True, allow_single_file = True, cfg = cfg, mandatory = True, doc = "Native widl executable."),
+        "files": attr.label(cfg = cfg, mandatory = True, doc = "All tools distribution files, including headers, IDLs, typelibs and Unix NLS data."),
+        "include": attr.label(allow_single_file = True, cfg = cfg, mandatory = True, doc = "Header directly inside the distribution's include/wine/windows directory, normally windows.h."),
+        "nls": attr.label(allow_single_file = True, cfg = cfg, doc = "Bundled share/wine/nls/locale.nls. Omit for native Windows tools."),
+        "x86_64_typelib": attr.label(allow_single_file = [".tlb"], cfg = cfg, mandatory = True, doc = "Bundled lib/wine/x86_64-windows/stdole2.tlb."),
+        "aarch64_typelib": attr.label(allow_single_file = [".tlb"], cfg = cfg, mandatory = True, doc = "Bundled lib/wine/aarch64-windows/stdole2.tlb."),
+    }
 
 wine_tools_toolchain = rule(
     implementation = _impl,
@@ -52,14 +69,18 @@ Each is a raw executable path without flags; quote it in shell commands.
 DefaultInfo supplies the complete distribution. Custom executables that need
 runfiles must also appear in genrule.tools to materialize those runfiles.
 """,
-    attrs = {
-        "wmc": attr.label(executable = True, allow_single_file = True, cfg = "exec", mandatory = True, doc = "Native wmc executable."),
-        "wrc": attr.label(executable = True, allow_single_file = True, cfg = "exec", mandatory = True, doc = "Native wrc executable."),
-        "widl": attr.label(executable = True, allow_single_file = True, cfg = "exec", mandatory = True, doc = "Native widl executable."),
-        "files": attr.label(cfg = "exec", mandatory = True, doc = "All tools distribution files, including headers, IDLs, typelibs and Unix NLS data."),
-        "include": attr.label(allow_single_file = True, cfg = "exec", mandatory = True, doc = "Header directly inside the distribution's include/wine/windows directory, normally windows.h."),
-        "nls": attr.label(allow_single_file = True, cfg = "exec", doc = "Bundled share/wine/nls/locale.nls. Omit for native Windows tools."),
-        "x86_64_typelib": attr.label(allow_single_file = [".tlb"], cfg = "exec", mandatory = True, doc = "Bundled lib/wine/x86_64-windows/stdole2.tlb."),
-        "aarch64_typelib": attr.label(allow_single_file = [".tlb"], cfg = "exec", mandatory = True, doc = "Bundled lib/wine/aarch64-windows/stdole2.tlb."),
-    },
+    attrs = _attrs("exec"),
+)
+
+wine_tools_executable_toolchain = rule(
+    implementation = _impl,
+    doc = """Define tools for the wmc, wrc and widl executable labels.
+
+Wrap with a native toolchain declaration using
+@rules_wine//wine:tools_executable_toolchain_type and target_compatible_with
+constraints describing where these executables run. Dependencies remain in the
+configured target platform, which is the consuming action's executor when used
+as a tool. Use wine_tools_toolchain separately for generation rules and genrules.
+""",
+    attrs = _attrs("target"),
 )

@@ -10,7 +10,7 @@ export MSYS2_ARG_CONV_EXCL='*'
 # A relocated consumer also exercises spaces in the source and output roots.
 mkdir "$scratch/consumer space"
 cp "$root/e2e/tools/"*.bazel "$root/e2e/tools/"*.bzl "$root/e2e/tools/"*.idl \
-  "$root/e2e/tools/"*.rc "$root/e2e/tools/"*.mc "$scratch/consumer space/"
+  "$root/e2e/tools/"*.rc "$root/e2e/tools/"*.mc "$root/e2e/tools/"*.tlb "$scratch/consumer space/"
 cp "$root/e2e/tools/.bazelrc" "$scratch/consumer space/"
 cp "$root/.bazelversion" "$scratch/consumer space/"
 rules_path=$root
@@ -20,6 +20,12 @@ cd "$scratch/consumer space"
 bazel_cmd() { bazel --nosystem_rc --nohome_rc --output_base="$scratch/output" "$@"; }
 trap 'bazel_cmd shutdown >/dev/null 2>&1' EXIT
 flags=(--lockfile_mode=off --remote_executor= --remote_cache= --disk_cache= --remote_accept_cached=false --symlink_prefix="$scratch/bazel-")
+for tool in wmc wrc widl; do
+  version_flag=-V
+  if [[ $tool == wrc ]]; then version_flag=--version; fi
+  bazel_cmd run "@rules_wine//wine:$tool" "${flags[@]}" -- "$version_flag" > "$scratch/$tool-version.log" 2>&1
+  grep -qi 'Wine' "$scratch/$tool-version.log"
+done
 bazel_cmd mod graph --lockfile_mode=off --output=json > "$scratch/modules.json"
 jq -e 'all(.. | objects; .name != "llvm")' "$scratch/modules.json" >/dev/null
 modes=(off strip)
@@ -46,6 +52,7 @@ for cpu in x86_64 aarch64; do
     > "$scratch/$cpu-actions.json" 2> "$scratch/$cpu-actions.log"
   jq -e --arg cpu "$cpu" '
     ([.actions[] | select(.mnemonic | test("^Wine.*Compile$"))] | length) == 15 and
+    ([.actions[] | select(.mnemonic == "RunBinary")] | length) == 4 and
     all(.actions[]; (.mnemonic | test("CppCompile|CppLink|CppArchive") | not)) and
     all(.actions[]; (.arguments // [] | index("-I")) == null) and
     all(.actions[] | select(.mnemonic | test("^Wine.*Compile$")); (.executionPlatform | endswith("//host:host"))) and

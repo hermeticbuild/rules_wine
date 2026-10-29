@@ -134,6 +134,37 @@ be enabled with `--experimental_output_paths=strip` and
 Windows does not provide a mapping-capable sandbox. Paths embedded inside input
 files or preprocessor definitions remain the caller's responsibility.
 
+## Executable tools
+
+`@rules_wine//wine:wmc`, `:wrc` and `:widl` are executable targets. The same
+`register_toolchains("@wine_tools_toolchains//:all")` setup enables them. For
+example, with a direct `bazel_lib` dependency in your module:
+
+```starlark
+load("@bazel_lib//lib:run_binary.bzl", "run_binary")
+
+run_binary(
+    name = "custom_resource",
+    srcs = ["application.rc"],
+    outs = ["application.res"],
+    args = ["-u", "-o", "$(location application.res)", "$(location application.rc)"],
+    tool = "@rules_wine//wine:wrc",
+)
+```
+
+You can also use `bazel run @rules_wine//wine:widl -- -V`. A tiny native
+forwarding launcher preserves the original executable's installation paths and
+runfiles. Its template and finalizer are prebuilt; no consumer compiler, Wine
+runtime or supervisor is involved. Executable selection follows the configured
+target platform, which is the consuming action's executor for `run_binary`.
+The launcher finalizer may run on a different executor.
+
+These targets supply the complete distribution but add no compiler flags.
+Declare imports, headers and assets in `srcs`, and provide search paths and the
+WIDL target ABI in `args` when needed. `run_binary` owns its string expansion
+and path-mapping behavior; the generation rules' typed-File guarantees do not
+apply to these raw arguments.
+
 ## Custom distributions and low-level actions
 
 For a genrule, request `toolchains = ["@rules_wine//wine:tools_toolchain_type"]`
@@ -159,10 +190,9 @@ Acquire a custom native tools archive with `http_archive`, export its executable
 files, and define an implementation in `BUILD.bazel`:
 
 ```starlark
-load("@rules_wine//wine:tools_toolchain.bzl", "wine_tools_toolchain")
+load("@rules_wine//wine:tools_toolchain.bzl", "wine_tools_executable_toolchain", "wine_tools_toolchain")
 
-wine_tools_toolchain(
-    name = "company_tools_impl",
+distribution = dict(
     wmc = "@company_tools//:bin/wmc",
     wrc = "@company_tools//:bin/wrc",
     widl = "@company_tools//:bin/widl",
@@ -172,15 +202,27 @@ wine_tools_toolchain(
     x86_64_typelib = "@company_tools//:lib/wine/x86_64-windows/stdole2.tlb",
     aarch64_typelib = "@company_tools//:lib/wine/aarch64-windows/stdole2.tlb",
 )
+wine_tools_toolchain(name = "company_tools_impl", **distribution)
+wine_tools_executable_toolchain(name = "company_executables_impl", **distribution)
 toolchain(
     name = "company_tools",
     toolchain = "company_tools_impl",
     toolchain_type = "@rules_wine//wine:tools_toolchain_type",
     exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
 )
+toolchain(
+    name = "company_executables",
+    toolchain = "company_executables_impl",
+    toolchain_type = "@rules_wine//wine:tools_executable_toolchain_type",
+    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+)
 ```
 
-Register this with `register_toolchains("//:company_tools")`. For native Windows,
+Register with `register_toolchains("//:company_tools", "//:company_executables")`.
+The first registration serves generation rules and genrules; the second serves
+the executable labels. Put all executor constraints, including custom worker
+constraints, in `target_compatible_with` for the second registration. This
+avoids choosing tools for the launcher's own build executor. For native Windows,
 use `.exe` executable paths and omit `nls`. Preserve the installation layout and
 include all support files in `files`.
 

@@ -50,7 +50,9 @@ jobs:
         run: bash e2e/test_tools.sh
       - name: Lifecycle, runfiles and argument regressions
         if: matrix.platform == 'regressions'
-        run: bazel test //tests:integration --lockfile_mode=off
+        run: |
+          bazel test //tests:integration --lockfile_mode=off
+          bazel test //tests:tool_binary_runfiles_test --extra_toolchains=//tests:native_executable_runfiles_registration --lockfile_mode=off
       - name: Path mapping regressions
         if: matrix.platform == 'regressions'
         run: bash e2e/test_path_mapping.sh
@@ -65,6 +67,7 @@ jobs:
           bash e2e/test_starlark.sh
           bash e2e/test_extension.sh
           bash e2e/test_tools_external.sh
+          bash e2e/test_tools_selection.sh
       - name: Caller-supplied archive through public toolchains
         if: matrix.platform == 'regressions'
         run: |

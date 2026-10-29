@@ -31,8 +31,10 @@ resources "$bin/messages.res" > "$scratch/messages.txt"
 cmp "$bin/messages.res" "$bin/unicode_messages.res"
 resources "$bin/inline_messages.res" > "$scratch/inline.txt"
 resources "$bin/makevars/messages.res" > "$scratch/makevars.txt"
+resources "$bin/run/messages.res" > "$scratch/run.txt"
 cmp "$scratch/messages.txt" "$scratch/inline.txt"
 cmp "$scratch/messages.txt" "$scratch/makevars.txt"
+cmp "$scratch/messages.txt" "$scratch/run.txt"
 grep -q 'MSG_TOOLS_HELLO' "$bin/makevars/messages.h"
 # One message block, ID 1001, UTF-16 table entry, complete message and terminator.
 grep -qx '11:1:01000000e9030000e90300001000000034000100480065006c006c006f002000660072006f006d002000570069006e006500200074006f006f006c0073002e000a000000' "$scratch/messages.txt"
@@ -40,6 +42,8 @@ resources "$bin/nested/resources.res" > "$scratch/resources.txt"
 grep -qx "10:43:$(hex "$bin/generated/assets/payload.txt")" "$scratch/resources.txt"
 # STRINGTABLE block 3 contains string ID 42 (Wine tools: café) at index 10.
 grep -qx '6:3:00000000000000000000000000000000000000001000570069006e006500200074006f006f006c0073003a002000630061006600e90000000000000000000000' "$scratch/resources.txt"
+resources "$bin/run/unicode.res" > "$scratch/unicode.txt"
+grep -qx '6:3:00000000000000000000000000000000000000001000570069006e006500200074006f006f006c0073003a002000630061006600e90000000000000000000000' "$scratch/unicode.txt"
 grep -q 'IExampleVtbl' "$bin/example.h"
 grep -q 'HRESULT.*Ping' "$bin/example.h"
 grep -q '#include "example.h"' "$bin/example_p.c"
@@ -53,6 +57,7 @@ typelib=$(hex "$bin/interfaces.tlb")
 [[ $typelib == 4d534654* ]]
 [[ $typelib == *8330d07c84786d4d8d79b69a94c3f94b* ]]
 [[ $typelib == *7374646f6c65322e746c62* ]]
+cmp "$bin/makevars/interfaces.tlb" "$bin/run/interfaces.tlb"
 typelib=$(hex "$bin/makevars/interfaces.tlb")
 [[ $typelib == 4d534654* ]]
 [[ $typelib == *8330d07c84786d4d8d79b69a94c3f94b* ]]

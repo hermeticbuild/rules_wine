@@ -77,7 +77,9 @@ The message rule also emits `messages.h`; outputs are ordinary file labels.
 WIDL selects the Windows output ABI from the configured target CPU, independently
 of the executor. Consumers own C/C++ compilation and linking. The
 [tools guide](docs/tools.md) covers declared imports/assets, custom toolchains,
-low-level actions and optional path mapping.
+low-level actions and optional path mapping. Executable labels
+`@rules_wine//wine:wmc`, `:wrc` and `:widl` are also available for `bazel run`
+and `bazel_lib`'s `run_binary`, using the same registration.
 
 ## Wrap an executable
 
