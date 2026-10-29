@@ -53,9 +53,11 @@ Windows x86_64/ARM64, with Bazel 8.5.0 and 9.3.1. Linux/macOS ARM64 execute both
 ARM64 and x86_64 Windows payloads; other executors use their native payload CPU.
 Windows exercises direct actions; Linux/macOS also exercise the executable adapter.
 
-The runtime test checks the fixture's PE machine and Bazel's configured CPU
-against the actual host. On Windows ARM64, it reads `Win32_Processor.Architecture`
-through PowerShell because Git Bash may itself run under x86_64 emulation.
+The runtime test checks the fixture's PE machine and compares Bazel's configured
+CPU with the CI matrix's expected CPU, passed through `RULES_WINE_EXPECTED_CPU`.
+Local Linux and macOS tests also compare the configured CPU with `uname -m`.
+Local Windows tests verify the PE and runtime output; Git Bash's own architecture
+is not reliable when it runs under x86_64 emulation on ARM64.
 
 The two Linux x86_64 jobs also run the root, Starlark, external-tools and custom
 archive suites. They verify optional path mapping with:

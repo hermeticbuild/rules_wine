@@ -21,12 +21,10 @@ shift 5
 offset=$(od -An -tu4 -j60 -N4 "$pe" | tr -d ' \n')
 machine=$(od -An -tx2 -j"$((offset + 4))" -N2 "$pe" | tr -d ' \n')
 case "$guest" in x86_64) [[ $machine == 8664 ]] ;; aarch64) [[ $machine == aa64 ]] ;; esac
-if [[ $backend == windows ]]; then
-  # Git Bash may itself run under x86 emulation on an ARM64 machine.
-  echo 'Checking Windows hardware architecture'
-  hardware=$(powershell.exe -NoProfile -NonInteractive -Command '(Get-CimInstance Win32_Processor | Select-Object -First 1).Architecture' </dev/null | tr -d '\r')
-  case "$hardware" in 12) [[ $host_cpu == aarch64 ]] ;; 9) [[ $host_cpu == x86_64 ]] ;; *) exit 1 ;; esac
-else
+if [[ -n ${RULES_WINE_EXPECTED_CPU:-} ]]; then
+  [[ $host_cpu == "$RULES_WINE_EXPECTED_CPU" ]]
+fi
+if [[ $backend != windows ]]; then
   case "$(uname -m)" in arm64|aarch64) [[ $host_cpu == aarch64 ]] ;; x86_64) [[ $host_cpu == x86_64 ]] ;; *) exit 1 ;; esac
 fi
 for output in "$@"; do

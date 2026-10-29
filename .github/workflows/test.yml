@@ -42,7 +42,7 @@ jobs:
           bazelisk-version: '1.30.0'
       - name: Execute default runtimes through the public APIs
         working-directory: e2e/smoke
-        run: bazel test //... --lockfile_mode=off
+        run: bazel test //... --lockfile_mode=off --test_env=RULES_WINE_EXPECTED_CPU=${{ contains(matrix.platform, 'arm64') && 'aarch64' || 'x86_64' }}
       - name: Execute native developer tools without a consumer compiler
         working-directory: e2e/tools
         run: bazel test //... --lockfile_mode=off
