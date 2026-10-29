@@ -16,4 +16,5 @@ windows_binary(
     name = "mapped",
     binary = "payload",
     target_compatible_with = ["@mapped_platforms//cpu:x86_64"],
+    visibility = ["//visibility:public"],
 )

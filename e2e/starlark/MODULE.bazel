@@ -1,0 +1,27 @@
+module(name = "wine_contracts")
+
+bazel_dep(name = "rules_wine", version = "0.1.2")
+local_path_override(
+    module_name = "rules_wine",
+    path = "../..",
+)
+
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "bazel_lib", version = "3.0.0")
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+bazel_dep(name = "caller", version = "0.1.0")
+local_path_override(
+    module_name = "caller",
+    path = "caller",
+)
+
+bazel_dep(name = "native_tools_consumer", version = "0.0.0")
+local_path_override(
+    module_name = "native_tools_consumer",
+    path = "../tools",
+)
+
+wine = use_extension("@rules_wine//wine/extension:wine.bzl", "wine")
+use_repo(wine, "wine_tools_toolchains")
+
+register_toolchains("@wine_tools_toolchains//:all")

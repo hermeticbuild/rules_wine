@@ -1,0 +1,75 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@rules_wine//tests:runtime_consumer.bzl", "consumer")
+load("@rules_wine//wine:toolchain.bzl", "windows_runner_toolchain")
+load("@rules_wine//wine:windows_binary.bzl", "windows_binary")
+
+windows_runner_toolchain(
+    name = "company_impl",
+    arch = "x86_64",
+    backend = "wine",
+    files = "@company_wine//:files",
+    identity = "Caller-supplied Wine archive",
+    launcher = "@rules_wine//wine/runtime:supervisor",
+    loader = "@company_wine//:loader",
+    server = "@company_wine//:server",
+)
+
+toolchain(
+    name = "company_runner",
+    exec_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    toolchain = "company_impl",
+    toolchain_type = "@rules_wine//wine:runner_toolchain_type",
+)
+
+toolchain(
+    name = "company_adapter",
+    exec_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    toolchain = "company_impl",
+    toolchain_type = "@rules_wine//wine:adapter_toolchain_type",
+)
+
+windows_binary(
+    name = "binary",
+    binary = "@rules_wine//tests:fixture/fixture_x86_64.exe",
+)
+
+consumer(
+    name = "action_x86_64",
+    binary = "@rules_wine//tests:fixture/fixture_x86_64.exe",
+)
+
+consumer(
+    name = "adapter_x86_64",
+    adapter = "binary",
+    binary = "@rules_wine//tests:fixture/fixture_x86_64.exe",
+)
+
+sh_test(
+    name = "custom_runtime_test",
+    srcs = ["@rules_wine//tests:verify_runtime.sh"],
+    args = [
+        "x86_64",
+        "$(rlocationpath @rules_wine//tests:fixture/fixture_x86_64.exe)",
+        "off",
+        "wine",
+        "x86_64",
+        "$(rlocationpath action_x86_64)",
+        "$(rlocationpath adapter_x86_64)",
+    ],
+    data = [
+        "action_x86_64",
+        "adapter_x86_64",
+        "@rules_wine//tests:fixture/fixture_x86_64.exe",
+    ],
+    deps = ["@rules_shell//shell/runfiles"],
+)

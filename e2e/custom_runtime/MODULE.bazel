@@ -1,0 +1,34 @@
+module(name = "custom_wine_consumer")
+
+bazel_dep(name = "rules_wine", version = "0.1.2")
+local_path_override(
+    module_name = "rules_wine",
+    path = "../..",
+)
+
+bazel_dep(name = "platforms", version = "1.1.0")
+
+bazel_dep(name = "llvm", version = "0.8.26", dev_dependency = True)
+bazel_dep(name = "rules_shell", version = "0.8.0", dev_dependency = True)
+
+register_toolchains(
+    "@llvm//toolchain:all",
+    dev_dependency = True,
+)
+
+# This consumer deliberately does not load the default Wine extension.
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "company_wine",
+    build_file_content = """
+package(default_visibility = ["//visibility:public"])
+filegroup(name = "loader", srcs = ["bin/wine"])
+filegroup(name = "server", srcs = ["bin/wineserver"])
+filegroup(name = "files", srcs = glob(["**"]))
+""",
+    sha256 = "5fb0f5f32a305873337e0202638acc64f59690c7a0184a6ea6a0164a79e31dc7",
+    urls = ["https://github.com/hermeticbuild/wine-prebuilt/releases/download/11.20.2/wine-linux-amd64-11.20.2.tar.zst"],
+)
+
+register_toolchains("//:company_runner", "//:company_adapter")

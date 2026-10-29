@@ -1,9 +1,12 @@
 load("@rules_wine//wine:toolchain.bzl", "windows_runner_toolchain")
 load("@rules_wine//wine:windows_binary.bzl", "windows_binary")
 load(":audit.bzl", "collision", "stub", "symlink_data")
+load(":contracts.bzl", "contract_tests")
 load(":execution.bzl", "grouped_actions")
 
 package(default_visibility = ["//visibility:public"])
+
+contract_tests()
 
 platform(
     name = "audit_exec",
@@ -48,12 +51,14 @@ toolchain(
 stub(
     name = "launcher",
     data = ["launcher_data"],
+    tags = ["manual"],
 )
 
 stub(
     name = "sidecar_launcher",
     data = ["launcher_data"],
     sidecar = True,
+    tags = ["manual"],
 )
 
 windows_runner_toolchain(
@@ -151,6 +156,7 @@ toolchain(
 grouped_actions(
     name = "grouped_actions",
     native = "payload_with_data",
+    tags = ["manual"],
     wine = "payload_with_data",
 )
 
@@ -171,12 +177,14 @@ toolchain(
 collision(
     name = "collision",
     binary = "payload.exe",
+    tags = ["manual"],
 )
 
 collision(
     name = "fixed_action",
     binary = "payload.exe",
     exec_compatible_with = ["@platforms//cpu:x86_64"],
+    tags = ["manual"],
 )
 
 symlink_data(
@@ -187,33 +195,32 @@ symlink_data(
 stub(
     name = "payload_with_data",
     data = ["alias_data"],
+    tags = ["manual"],
 )
 
 windows_binary(
     name = "data_adapter",
     binary = select({"//conditions:default": "payload_with_data"}),
+    tags = ["manual"],
 )
 
 windows_binary(
     name = "apparent_platform",
     binary = "payload.exe",
+    tags = ["manual"],
     target_platform = "@rules_wine//platforms:windows_x86_64",
 )
 
 windows_binary(
     name = "wrong_platform",
     binary = "payload.exe",
+    tags = ["manual"],
     target_platform = "audit_exec",
 )
 
 windows_binary(
     name = "wrong_cpu",
     binary = "payload.exe",
+    tags = ["manual"],
     target_platform = "@rules_wine//platforms:windows_aarch64",
-)
-
-windows_binary(
-    name = "fixed_x86",
-    binary = "payload.exe",
-    target_compatible_with = ["@platforms//cpu:x86_64"],
 )
