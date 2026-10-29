@@ -118,6 +118,7 @@ selection_test = analysistest.make(_selection_impl, config_settings = _selection
 selection_arm64_test = analysistest.make(_selection_impl, config_settings = _selection_settings("selection_arm"))
 
 def contract_tests():
+    """Checks public runtime and native toolchain configuration contracts."""
     runtime_inputs_test(name = "runtime_inputs_test", target_under_test = "implementation")
     generated_runtime_test(name = "generated_runtime_test", target_under_test = "collision", inputs = ["built_loader.sh"])
     sidecar_runtime_test(name = "sidecar_runtime_test", target_under_test = "collision", inputs = ["sidecar_launcher.json"])
