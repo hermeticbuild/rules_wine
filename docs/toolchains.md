@@ -1,5 +1,8 @@
 # Custom Wine toolchains
 
+For standalone `wmc`, `wrc` and `widl`, see
+[native developer toolchains](tools.md#custom-distributions-and-low-level-actions).
+
 The module extension generates the default toolchains. Register them with
 `register_toolchains("@wine_toolchains//:all")`; a `bazel_dep` alone does not.
 For a custom-only setup, omit that extension and register your own toolchains

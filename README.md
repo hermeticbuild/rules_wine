@@ -8,6 +8,10 @@ Wine distributions come from
 [hermeticbuild/wine-prebuilt](https://github.com/hermeticbuild/wine-prebuilt).
 Downloads are pinned by checksum. You can also register your own distribution.
 
+Native `wmc`, `wrc` and `widl` compile message tables, resources and IDLs directly
+on all five executors. Their separate toolchains need no Wine runtime or C++
+compiler. See [native developer tools](docs/tools.md).
+
 ## Setup
 
 Add to `MODULE.bazel`:
@@ -45,6 +49,37 @@ needed for x86_64 prebuilts. Linux requires glibc 2.17 or newer and a UTF-8 loca
 The macOS runtime declares a 26.5 deployment minimum; it has been tested on later
 26.x versions, not on exact 26.5. There is no default Intel macOS distribution.
 See [runtime requirements and limitations](docs/runtime.md).
+
+## Compile messages, resources and IDLs
+
+Register the native tools independently in `MODULE.bazel`:
+
+This API is unreleased; use the current checkout with the `local_path_override`
+above. Published 0.1.2 contains only runtime APIs.
+
+```starlark
+wine = use_extension("@rules_wine//wine/extension:wine.bzl", "wine")
+use_repo(wine, "wine_tools_toolchains")
+register_toolchains("@wine_tools_toolchains//:all")
+```
+
+```starlark
+load("@rules_wine//wine:wine_message_file.bzl", "wine_message_file")
+load("@rules_wine//wine:wine_resource_file.bzl", "wine_resource_file")
+load("@rules_wine//wine:wine_idl_files.bzl", "wine_idl_files")
+
+wine_message_file(name = "messages", src = "messages.mc", out = "messages.rc")
+wine_resource_file(name = "message_resources", src = "messages.rc", out = "messages.res")
+wine_idl_files(name = "interfaces", src = "interfaces.idl", header = "interfaces.h", typelib = "interfaces.tlb")
+```
+
+The message rule also emits `messages.h`; outputs are ordinary file labels.
+WIDL selects the Windows output ABI from the configured target CPU, independently
+of the executor. Consumers own C/C++ compilation and linking. The
+[tools guide](docs/tools.md) covers declared imports/assets, custom toolchains,
+low-level actions and optional path mapping. Executable labels
+`@rules_wine//wine:wmc`, `:wrc` and `:widl` are also available for `bazel run`
+and `bazel_lib`'s `run_binary`, using the same registration.
 
 ## Wrap an executable
 
@@ -96,6 +131,7 @@ compilation, optional path mapping and choosing workers to avoid CPU translation
 
 - [BCR API reference](https://registry.bazel.build/docs/rules_wine) (for releases publishing API docs)
 - [Custom Wine distributions and toolchains](docs/toolchains.md)
+- [Native message, resource and IDL compilers](docs/tools.md)
 - [Runtime behavior, isolation and limitations](docs/runtime.md)
 - [Tests and contributing](tests/README.md)
 - [Maintaining Starlark libraries and API documentation](docs/contributing.md)

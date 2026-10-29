@@ -1,0 +1,9 @@
+[
+    uuid(7cd03083-7884-4d6d-8d79-b69a94c3f94c),
+    version(1.0),
+    pointer_default(unique)
+]
+interface ToolRpc
+{
+    long Ping([in] long value);
+};

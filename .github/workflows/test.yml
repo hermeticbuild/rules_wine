@@ -45,25 +45,37 @@ jobs:
       - name: Execute default runtimes through the public APIs
         if: matrix.platform != 'regressions'
         run: bash e2e/test_runtime.sh
+      - name: Execute native developer tools without a consumer compiler
+        if: matrix.platform != 'regressions'
+        run: bash e2e/test_tools.sh
       - name: Lifecycle, runfiles and argument regressions
         if: matrix.platform == 'regressions'
-        run: bazel test //tests:integration --lockfile_mode=off
+        run: |
+          bazel test //tests:integration --lockfile_mode=off
+          bazel test //tests:tool_binary_runfiles_test --extra_toolchains=//tests:native_executable_runfiles_registration --lockfile_mode=off
       - name: Path mapping regressions
         if: matrix.platform == 'regressions'
         run: bash e2e/test_path_mapping.sh
+      - name: Compile generated RPC source with a consumer-owned Windows SDK
+        if: matrix.platform == 'regressions'
+        run: |
+          bazel build //tests:generated_rpc --lockfile_mode=off --platforms=@llvm//platforms:windows_x86_64
+          bazel build //tests:generated_rpc --lockfile_mode=off --platforms=@llvm//platforms:windows_aarch64
       - name: Starlark and module extension contracts
         if: matrix.platform == 'regressions'
         run: |
           bash e2e/test_starlark.sh
           bash e2e/test_extension.sh
+          bash e2e/test_tools_external.sh
+          bash e2e/test_tools_selection.sh
       - name: Caller-supplied archive through public toolchains
         if: matrix.platform == 'regressions'
         run: |
           curl --fail --location --retry 3 \
-            https://github.com/hermeticbuild/wine-prebuilt/releases/download/11.20.1/wine-linux-amd64-11.20.1.tar.zst \
+            https://github.com/hermeticbuild/wine-prebuilt/releases/download/11.20.2/wine-linux-amd64-11.20.2.tar.zst \
             -o "$RUNNER_TEMP/custom-wine.tar.zst"
           bash e2e/test_custom_archive.sh "$RUNNER_TEMP/custom-wine.tar.zst" \
-            ce069b8ea2c8e301890fd96d58cebe3945a4a474776804d1d876692fa20cb49d
+            5fb0f5f32a305873337e0202638acc64f59690c7a0184a6ea6a0164a79e31dc7
       - name: Preserve runtime failure logs
         if: failure() && matrix.platform != 'regressions'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -25,6 +25,19 @@ bzl_library(
 )
 
 bzl_library(
+    name = "tools_registrations",
+    srcs = ["tools_registrations.bzl"],
+    deps = ["//wine:tools_toolchain"],
+)
+
+bzl_library(
+    name = "tool_binary",
+    srcs = ["tool_binary.bzl"],
+    # keep: the Starlark plugin guesses lib; upstream exports lib_bzl instead.
+    deps = ["@hermetic_launcher//launcher:lib_bzl"],
+)
+
+bzl_library(
     name = "paths",
     srcs = ["paths.bzl"],
 )
@@ -37,4 +50,9 @@ bzl_library(
 bzl_library(
     name = "repositories",
     srcs = ["repositories.bzl"],
+)
+
+bzl_library(
+    name = "tools_repositories",
+    srcs = ["tools_repositories.bzl"],
 )

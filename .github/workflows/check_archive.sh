@@ -11,7 +11,11 @@ printf '%s\n' \
   wine/actions.doc_extract.binaryproto \
   wine/extension/wine.doc_extract.binaryproto \
   wine/toolchain.doc_extract.binaryproto \
-  wine/windows_binary.doc_extract.binaryproto > expected-docs.txt
+  wine/tools_toolchain.doc_extract.binaryproto \
+  wine/windows_binary.doc_extract.binaryproto \
+  wine/wine_idl_files.doc_extract.binaryproto \
+  wine/wine_message_file.doc_extract.binaryproto \
+  wine/wine_resource_file.doc_extract.binaryproto > expected-docs.txt
 diff -u expected-docs.txt actual-docs.txt
 tar -xzf rules_wine-v0.0.0-ci.tar.gz
 cd rules_wine-0.0.0-ci

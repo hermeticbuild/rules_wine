@@ -1,0 +1,11 @@
+#include <winresrc.h>
+#include "sub/resource_ids.h"
+#if EXPECTED_DEFINE != 37
+#error missing caller define
+#endif
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+STRINGTABLE
+BEGIN
+    IDS_HELLO "Wine tools: café"
+END
+IDR_PAYLOAD RCDATA "assets/payload.txt"
