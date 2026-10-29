@@ -4,12 +4,14 @@ gazelle_binary(
     name = "gazelle",
     languages = ["@bazel_skylib_gazelle_plugin//bzl"],
     pure = "on",
+    tags = ["manual"],
 )
 
 gazelle(
     name = "update",
     args = ["wine"],
     gazelle = "gazelle",
+    tags = ["manual"],
 )
 
 gazelle(
@@ -17,4 +19,5 @@ gazelle(
     args = ["wine"],
     gazelle = "gazelle",
     mode = "diff",
+    tags = ["manual"],
 )
