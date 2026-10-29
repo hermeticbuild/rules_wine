@@ -20,7 +20,7 @@ toolchain(
         "@platforms//cpu:aarch64",
     ],
     target_settings = ["@hermetic_launcher//launcher/private:stub_source_prebuilt"],
-    toolchain = ":windows_arm64_template",
+    toolchain = "windows_arm64_template",
     toolchain_type = "@hermetic_launcher//launcher:template_toolchain_type",
 )
 
@@ -36,6 +36,6 @@ toolchain(
         "@platforms//cpu:aarch64",
     ],
     target_settings = ["@hermetic_launcher//launcher/private:stub_source_prebuilt"],
-    toolchain = ":windows_arm64_finalizer",
+    toolchain = "windows_arm64_finalizer",
     toolchain_type = "@hermetic_launcher//launcher:finalizer_toolchain_type",
 )

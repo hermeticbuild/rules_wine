@@ -288,7 +288,7 @@ run_binary(
     srcs = ["unicode.rc"],
     outs = ["run/quoted.res"],
     args = [
-        "'-DRESOURCE_TEXT=\"Wine tools: résumé\"'",
+        "'-DRESOURCE_TEXT=\"Wine tools: quoted\"'",
         "-u",
         "-o",
         "$(location run/quoted.res)",
