@@ -1,3 +1,6 @@
 common --enable_bzlmod
 common --incompatible_strict_action_env
 common --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+common --test_output=errors
+build:mapped --experimental_output_paths=strip
+build:mapped --modify_execution_info=WineMessageCompile|WineResourceCompile|WineIdlCompile=+supports-path-mapping

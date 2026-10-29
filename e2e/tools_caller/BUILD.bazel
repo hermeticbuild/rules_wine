@@ -1,1 +1,8 @@
-# Targets under @native_tools_consumer exercise generation in an external repository.
+test_suite(
+    name = "external_tools_test",
+    tests = [
+        "@native_tools_consumer//:aarch64_test",
+        "@native_tools_consumer//:distinct_abis_test",
+        "@native_tools_consumer//:x86_64_test",
+    ],
+)
