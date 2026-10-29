@@ -9,18 +9,14 @@ runtime, supervisor, FEX or consumer C/C++ compiler. Linux tools require glibc
 
 ## Register tools
 
-Native tools are unreleased. Use the current checkout until a release includes
-this API:
+Native tools are available starting with rules_wine 0.1.3:
 
 ```starlark
-bazel_dep(name = "rules_wine", version = "0.1.2")
-local_path_override(module_name = "rules_wine", path = "../rules_wine")
+bazel_dep(name = "rules_wine", version = "0.1.3")
 wine = use_extension("@rules_wine//wine/extension:wine.bzl", "wine")
 use_repo(wine, "wine_tools_toolchains")
 register_toolchains("@wine_tools_toolchains//:all")
 ```
-
-Published `rules_wine` 0.1.2 contains only the runtime APIs.
 
 `wine_toolchains` and `wine_tools_toolchains` are independently imported and
 registered. The extension has no tags. To register a subset, name an individual

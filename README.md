@@ -17,7 +17,7 @@ compiler. See [native developer tools](docs/tools.md).
 Add to `MODULE.bazel`:
 
 ```starlark
-bazel_dep(name = "rules_wine", version = "0.1.2")
+bazel_dep(name = "rules_wine", version = "0.1.3")
 
 wine = use_extension("@rules_wine//wine/extension:wine.bzl", "wine")
 use_repo(wine, "wine_toolchains")
@@ -53,9 +53,6 @@ See [runtime requirements and limitations](docs/runtime.md).
 ## Compile messages, resources and IDLs
 
 Register the native tools independently in `MODULE.bazel`:
-
-This API is unreleased; use the current checkout with the `local_path_override`
-above. Published 0.1.2 contains only runtime APIs.
 
 ```starlark
 wine = use_extension("@rules_wine//wine/extension:wine.bzl", "wine")
