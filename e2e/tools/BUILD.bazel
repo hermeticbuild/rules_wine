@@ -204,6 +204,7 @@ filegroup(
         "resources",
         "rpc",
         "run_messages",
+        "run_quoted_resources",
         "run_resources",
         "run_typelib",
         "run_unicode_resources",
@@ -277,6 +278,20 @@ run_binary(
         "-u",
         "-o",
         "$(location run/unicode.res)",
+        "$(location unicode.rc)",
+    ],
+    tool = "@rules_wine//wine:wrc",
+)
+
+run_binary(
+    name = "run_quoted_resources",
+    srcs = ["unicode.rc"],
+    outs = ["run/quoted.res"],
+    args = [
+        "'-DRESOURCE_TEXT=\"Wine tools: résumé\"'",
+        "-u",
+        "-o",
+        "$(location run/quoted.res)",
         "$(location unicode.rc)",
     ],
     tool = "@rules_wine//wine:wrc",

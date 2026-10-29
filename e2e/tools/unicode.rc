@@ -1,6 +1,9 @@
 #include <winresrc.h>
+#ifndef RESOURCE_TEXT
+#define RESOURCE_TEXT "Wine tools: café"
+#endif
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 STRINGTABLE
 BEGIN
-    42 "Wine tools: café"
+    42 RESOURCE_TEXT
 END

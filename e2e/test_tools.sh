@@ -52,7 +52,7 @@ for cpu in x86_64 aarch64; do
     > "$scratch/$cpu-actions.json" 2> "$scratch/$cpu-actions.log"
   jq -e --arg cpu "$cpu" '
     ([.actions[] | select(.mnemonic | test("^Wine.*Compile$"))] | length) == 15 and
-    ([.actions[] | select(.mnemonic == "RunBinary")] | length) == 4 and
+    ([.actions[] | select(.mnemonic == "RunBinary")] | length) == 5 and
     all(.actions[]; (.mnemonic | test("CppCompile|CppLink|CppArchive") | not)) and
     all(.actions[]; (.arguments // [] | index("-I")) == null) and
     all(.actions[] | select(.mnemonic | test("^Wine.*Compile$")); (.executionPlatform | endswith("//host:host"))) and
