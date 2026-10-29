@@ -8,7 +8,7 @@ source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
   source "$(grep -sm1 "^$f " "$0.exe.runfiles_manifest" | cut -f2- -d' ')" 2>/dev/null || \
   { echo >&2 "ERROR: cannot find $f"; exit 1; }; f=; set -e
 set -euo pipefail
-bin=$(dirname "$(rlocation "$1")")
+bin=$(rlocation "$1")
 scratch=$TEST_TMPDIR
 if [[ $2 == strip ]]; then
   grep -q 'bazel-out/cfg/' "$bin/messages.rc"

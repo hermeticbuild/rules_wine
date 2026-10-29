@@ -9,13 +9,14 @@ on:
 permissions:
   contents: read
 jobs:
-  test:
-    name: ${{ matrix.platform }} / Bazel ${{ matrix.bazel }}
+  native:
+    name: ${{ matrix.module }} / ${{ matrix.platform }} / Bazel ${{ matrix.bazel }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
+        module: [smoke, tools]
         bazel: ['8.5.0', '9.3.1']
         platform: [linux-amd64, linux-arm64, macos-arm64, windows-amd64, windows-arm64]
         include:
@@ -34,6 +35,7 @@ jobs:
     defaults:
       run:
         shell: bash
+        working-directory: e2e/${{ matrix.module }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Set up Bazel
@@ -41,39 +43,16 @@ jobs:
         with:
           bazelisk-version: '1.30.0'
       - name: Execute default runtimes through the public APIs
-        working-directory: e2e/smoke
+        if: matrix.module == 'smoke'
         run: bazel test //... --lockfile_mode=off --test_env=RULES_WINE_EXPECTED_CPU=${{ contains(matrix.platform, 'arm64') && 'aarch64' || 'x86_64' }}
       - name: Execute native developer tools without a consumer compiler
-        working-directory: e2e/tools
-        run: bazel test //... --lockfile_mode=off
-      - name: Runtime contracts, custom runfiles and generated RPC compilation
-        if: matrix.platform == 'linux-amd64'
+        if: matrix.module == 'tools'
         run: bazel test //... --lockfile_mode=off
       - name: Optional path mapping
         if: matrix.platform == 'linux-amd64'
-        run: |
-          bazel test //tests:argv_test //tests:mapping_test --config=mapped --lockfile_mode=off
-          (cd e2e/smoke && bazel test //... --config=mapped --lockfile_mode=off)
-          (cd e2e/tools && bazel test //... --config=mapped --lockfile_mode=off)
-      - name: Starlark and execution-platform contracts
-        if: matrix.platform == 'linux-amd64'
-        working-directory: e2e/starlark
-        run: bazel test //... --lockfile_mode=off
-      - name: External module generation and compiler-free dependency graph
-        if: matrix.platform == 'linux-amd64'
-        working-directory: e2e/tools_caller
-        run: |
-          bazel test //... --lockfile_mode=off
-          bazel test //... --config=mapped --lockfile_mode=off
-          bazel mod graph --lockfile_mode=off --output=json > modules.json
-          jq -e 'all(.. | objects; .name != "llvm")' modules.json
-      - name: Caller-supplied archive through public toolchains
-        if: matrix.platform == 'linux-amd64'
-        working-directory: e2e/custom_runtime
-        run: bazel test //... --lockfile_mode=off
+        run: bazel test //... --config=mapped --lockfile_mode=off
       - name: Undeclared assets and imports stay outside the sandbox
-        if: matrix.platform == 'linux-amd64'
-        working-directory: e2e/tools
+        if: matrix.module == 'tools' && matrix.platform == 'linux-amd64'
         run: |
           if bazel build //:missing_asset --lockfile_mode=off > "$RUNNER_TEMP/missing-asset.log" 2>&1; then
             echo 'Undeclared asset unexpectedly available'; exit 1
@@ -87,8 +66,54 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: logs-${{ matrix.platform }}-${{ matrix.bazel }}
+          name: logs-${{ matrix.module }}-${{ matrix.platform }}-${{ matrix.bazel }}
           path: |
-            bazel-testlogs/**/test.log
-            e2e/*/bazel-testlogs/**/test.log
+            e2e/${{ matrix.module }}/bazel-testlogs/**/test.log
             ${{ runner.temp }}/missing-*.log
+  linux:
+    name: ${{ matrix.module }} / linux-amd64 / Bazel ${{ matrix.bazel }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        bazel: ['8.5.0', '9.3.1']
+        module: [root, starlark, tools_caller, custom_runtime]
+        include:
+          - module: root
+            directory: .
+          - module: starlark
+            directory: e2e/starlark
+          - module: tools_caller
+            directory: e2e/tools_caller
+          - module: custom_runtime
+            directory: e2e/custom_runtime
+    env:
+      USE_BAZEL_VERSION: ${{ matrix.bazel }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ matrix.directory }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Bazel
+        uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # 0.19.1
+        with:
+          bazelisk-version: '1.30.0'
+      - name: Test module
+        run: bazel test //... --lockfile_mode=off
+      - name: Root path mapping
+        if: matrix.module == 'root'
+        run: bazel test //tests:argv_test //tests:mapping_test --config=mapped --lockfile_mode=off
+      - name: External module path mapping and compiler-free dependency graph
+        if: matrix.module == 'tools_caller'
+        run: |
+          bazel test //... --config=mapped --lockfile_mode=off
+          bazel mod graph --lockfile_mode=off --output=json > modules.json
+          jq -e 'all(.. | objects; .name != "llvm")' modules.json
+      - name: Preserve failure logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: logs-${{ matrix.module }}-linux-amd64-${{ matrix.bazel }}
+          path: ${{ matrix.directory }}/bazel-testlogs/**/test.log

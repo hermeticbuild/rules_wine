@@ -59,8 +59,10 @@ Local Linux and macOS tests also compare the configured CPU with `uname -m`.
 Local Windows tests verify the PE and runtime output; Git Bash's own architecture
 is not reliable when it runs under x86_64 emulation on ARM64.
 
-The two Linux x86_64 jobs also run the root, Starlark, external-tools and custom
-archive suites. They verify optional path mapping with:
+Each E2E module has an independent CI lane. The smoke and tools lanes cover all
+five executors; root, Starlark, external-tools and custom archive lanes run on
+Linux x86_64. Each lane covers both Bazel versions. Optional path-mapping checks
+run within the corresponding Linux x86_64 lane:
 
 ```sh
 bazel test //tests:argv_test //tests:mapping_test --config=mapped --lockfile_mode=off

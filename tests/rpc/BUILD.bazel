@@ -1,0 +1,59 @@
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("//wine:wine_idl_files.bzl", "wine_idl_files")
+
+# Keep development-only test loads out of the package exporting E2E fixtures.
+wine_idl_files(
+    name = "rpc",
+    src = "//tests:fixture/rpc.idl",
+    client = "rpc_c.c",
+    header = "tool_rpc.h",
+    server = "rpc_s.c",
+    tags = ["manual"],
+)
+
+cc_library(
+    name = "generated_rpc",
+    testonly = True,
+    srcs = [
+        "rpc_c.c",
+        "rpc_s.c",
+    ],
+    hdrs = ["tool_rpc.h"],
+    # MinGW rpc.h omits ARM64 from its __RPC_WIN64__ definition.
+    defines = select({
+        "@platforms//cpu:aarch64": ["__RPC_WIN64__"],
+        "//conditions:default": [],
+    }),
+    tags = ["manual"],
+)
+
+[
+    platform_transition_filegroup(
+        name = "rpc_" + cpu,
+        testonly = True,
+        srcs = ["generated_rpc"],
+        tags = ["manual"],
+        target_platform = "@llvm//platforms:windows_" + cpu,
+    )
+    for cpu in [
+        "x86_64",
+        "aarch64",
+    ]
+]
+
+[
+    build_test(
+        name = "rpc_" + cpu + "_test",
+        exec_compatible_with = [
+            "@platforms//os:linux",
+            "@platforms//cpu:x86_64",
+        ],
+        targets = ["rpc_" + cpu],
+    )
+    for cpu in [
+        "x86_64",
+        "aarch64",
+    ]
+]
