@@ -315,22 +315,6 @@ wine_idl_files(
     tags = ["manual"],
 )
 
-wine_message_file(
-    name = "bad_message",
-    src = "bad.mc",
-    out = "bad.rc",
-    tags = ["manual"],
-)
-
-wine_idl_files(
-    name = "qualified_import",
-    src = "qualified_import.idl",
-    header = "qualified_import.h",
-    imports = ["generated/sub/example.idl"],
-    includes = ["generated"],
-    tags = ["manual"],
-)
-
 wine_resource_file(
     name = "absolute_include",
     src = "resources.rc",

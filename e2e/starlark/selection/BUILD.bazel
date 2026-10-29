@@ -1,0 +1,90 @@
+load("@rules_wine//wine:tools_toolchain.bzl", "wine_tools_executable_toolchain")
+
+package(default_visibility = ["//visibility:public"])
+
+constraint_setting(name = "worker")
+
+constraint_value(
+    name = "worker_a",
+    constraint_setting = ":worker",
+)
+
+constraint_value(
+    name = "worker_b",
+    constraint_setting = ":worker",
+)
+
+platform(
+    name = "selection_a",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+        ":worker_a",
+    ],
+)
+
+platform(
+    name = "selection_b",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+        ":worker_b",
+    ],
+)
+
+platform(
+    name = "selection_arm",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:aarch64",
+        ":worker_b",
+    ],
+)
+
+# Analysis-only placeholders identify custom selections; these tools never run.
+filegroup(
+    name = "selection_files",
+    srcs = [
+        "@native_tools_consumer//:messages.mc",
+        "@native_tools_consumer//:selection.tlb",
+        "@native_tools_consumer//:unicode.rc",
+    ],
+)
+
+wine_tools_executable_toolchain(
+    name = "selection_tools_a",
+    include = "@native_tools_consumer//:messages.mc",
+    aarch64_typelib = "@native_tools_consumer//:selection.tlb",
+    files = "selection_files",
+    tags = ["manual"],
+    widl = "@native_tools_consumer//:messages.mc",
+    wmc = "@native_tools_consumer//:messages.mc",
+    wrc = "@native_tools_consumer//:messages.mc",
+    x86_64_typelib = "@native_tools_consumer//:selection.tlb",
+)
+
+wine_tools_executable_toolchain(
+    name = "selection_tools_b",
+    include = "@native_tools_consumer//:unicode.rc",
+    aarch64_typelib = "@native_tools_consumer//:selection.tlb",
+    files = "selection_files",
+    tags = ["manual"],
+    widl = "@native_tools_consumer//:unicode.rc",
+    wmc = "@native_tools_consumer//:unicode.rc",
+    wrc = "@native_tools_consumer//:unicode.rc",
+    x86_64_typelib = "@native_tools_consumer//:selection.tlb",
+)
+
+toolchain(
+    name = "selection_registration_a",
+    target_compatible_with = [":worker_a"],
+    toolchain = "selection_tools_a",
+    toolchain_type = "@rules_wine//wine:tools_executable_toolchain_type",
+)
+
+toolchain(
+    name = "selection_registration_b",
+    target_compatible_with = [":worker_b"],
+    toolchain = "selection_tools_b",
+    toolchain_type = "@rules_wine//wine:tools_executable_toolchain_type",
+)
