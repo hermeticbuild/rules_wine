@@ -30,7 +30,10 @@ if grep -q '\.bin"' "$bin/messages.rc"; then exit 1; fi
 resources "$bin/messages.res" > "$scratch/messages.txt"
 cmp "$bin/messages.res" "$bin/unicode_messages.res"
 resources "$bin/inline_messages.res" > "$scratch/inline.txt"
+resources "$bin/makevars/messages.res" > "$scratch/makevars.txt"
 cmp "$scratch/messages.txt" "$scratch/inline.txt"
+cmp "$scratch/messages.txt" "$scratch/makevars.txt"
+grep -q 'MSG_TOOLS_HELLO' "$bin/makevars/messages.h"
 # One message block, ID 1001, UTF-16 table entry, complete message and terminator.
 grep -qx '11:1:01000000e9030000e90300001000000034000100480065006c006c006f002000660072006f006d002000570069006e006500200074006f006f006c0073002e000a000000' "$scratch/messages.txt"
 resources "$bin/nested/resources.res" > "$scratch/resources.txt"
@@ -47,6 +50,10 @@ grep -q 'LIBID_ToolTests' "$bin/interfaces_i.c"
 grep -q 'NdrClientCall2' "$bin/rpc_c.c"
 grep -q 'NdrServerCall2' "$bin/rpc_s.c"
 typelib=$(hex "$bin/interfaces.tlb")
+[[ $typelib == 4d534654* ]]
+[[ $typelib == *8330d07c84786d4d8d79b69a94c3f94b* ]]
+[[ $typelib == *7374646f6c65322e746c62* ]]
+typelib=$(hex "$bin/makevars/interfaces.tlb")
 [[ $typelib == 4d534654* ]]
 [[ $typelib == *8330d07c84786d4d8d79b69a94c3f94b* ]]
 [[ $typelib == *7374646f6c65322e746c62* ]]

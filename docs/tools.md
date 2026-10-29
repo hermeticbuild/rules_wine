@@ -136,6 +136,25 @@ files or preprocessor definitions remain the caller's responsibility.
 
 ## Custom distributions and low-level actions
 
+For a genrule, request `toolchains = ["@rules_wine//wine:tools_toolchain_type"]`
+and invoke `"$(WINE_WMC)"`, `"$(WINE_WRC)"` or `"$(WINE_WIDL)"` in `cmd`.
+These variables contain only executable paths; commands own flags and shell
+quoting. The resolved toolchain supplies the complete distribution as declared
+inputs. For custom executable targets with runfiles, also list those executable
+labels in `tools`: Bazel materializes their runfiles through that attribute.
+The generation rules already preserve custom executable runfiles automatically.
+For example:
+
+```starlark
+genrule(
+    name = "custom_typelib",
+    srcs = ["interfaces.idl"],
+    outs = ["interfaces.tlb"],
+    cmd = '"$(WINE_WIDL)" -b x86_64-w64-mingw32 -t -o "$@" "$(location interfaces.idl)"',
+    toolchains = ["@rules_wine//wine:tools_toolchain_type"],
+)
+```
+
 Acquire a custom native tools archive with `http_archive`, export its executable
 files, and define an implementation in `BUILD.bazel`:
 

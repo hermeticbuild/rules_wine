@@ -26,7 +26,16 @@ def _impl(ctx):
         nls = ctx.file.nls,
         typelibs = {"x86_64": ctx.file.x86_64_typelib, "aarch64": ctx.file.aarch64_typelib},
     )
-    return [info, platform_common.ToolchainInfo(wine_tools = info)]
+    return [
+        info,
+        platform_common.ToolchainInfo(wine_tools = info),
+        platform_common.TemplateVariableInfo({
+            "WINE_WMC": info.wmc.executable.path,
+            "WINE_WRC": info.wrc.executable.path,
+            "WINE_WIDL": info.widl.executable.path,
+        }),
+        DefaultInfo(files = info.files),
+    ]
 
 wine_tools_toolchain = rule(
     implementation = _impl,
@@ -37,6 +46,11 @@ Wrap this implementation in a native toolchain declaration using
 executables must run directly on that executor. No Wine runner is used.
 Supply the complete distribution in files, preserving its relative paths.
 The headers are compiler inputs, not a C/C++ Windows SDK.
+
+Resolved genrules can use WINE_WMC, WINE_WRC and WINE_WIDL make variables.
+Each is a raw executable path without flags; quote it in shell commands.
+DefaultInfo supplies the complete distribution. Custom executables that need
+runfiles must also appear in genrule.tools to materialize those runfiles.
 """,
     attrs = {
         "wmc": attr.label(executable = True, allow_single_file = True, cfg = "exec", mandatory = True, doc = "Native wmc executable."),

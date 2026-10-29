@@ -123,6 +123,15 @@ native_tools_runfiles(
     implementation = "native_runfiles_tools",
 )
 
+genrule(
+    name = "makevar_runfiles",
+    testonly = True,
+    outs = ["makevar_runfiles.json"],
+    cmd = '"$(WINE_WRC)" "$@"',
+    toolchains = ["native_runfiles_tools"],
+    tools = ["runfiles_fixture"],
+)
+
 windows_binary(
     name = "runfiles_binary",
     testonly = True,
@@ -163,6 +172,10 @@ two_actions(
 argv_record_test(
     name = "argv_test",
     records = {
+        "makevar_runfiles": json.encode([
+            "mapped external",
+            "alias-only data",
+        ]),
         "native_compiler_runfiles": json.encode([
             "mapped external",
             "alias-only data",

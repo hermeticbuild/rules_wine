@@ -101,12 +101,42 @@ filegroup(
         "example",
         "inline_messages",
         "interfaces",
+        "makevar_messages",
+        "makevar_resources",
+        "makevar_typelib",
         "message_res",
         "messages",
         "resources",
         "rpc",
         "unicode_messages",
     ],
+)
+
+genrule(
+    name = "makevar_messages",
+    srcs = ["messages.mc"],
+    outs = [
+        "makevars/messages.h",
+        "makevars/messages.rc",
+    ],
+    cmd = '"$(WINE_WMC)" -U -i -H "$(location makevars/messages.h)" -o "$(location makevars/messages.rc)" "$(location messages.mc)"',
+    toolchains = ["@rules_wine//wine:tools_toolchain_type"],
+)
+
+genrule(
+    name = "makevar_resources",
+    srcs = ["makevars/messages.rc"],
+    outs = ["makevars/messages.res"],
+    cmd = '"$(WINE_WRC)" -u -o "$@" "$(location makevars/messages.rc)"',
+    toolchains = ["@rules_wine//wine:tools_toolchain_type"],
+)
+
+genrule(
+    name = "makevar_typelib",
+    srcs = ["makevars.idl"],
+    outs = ["makevars/interfaces.tlb"],
+    cmd = '"$(WINE_WIDL)" -b x86_64-w64-mingw32 -t -o "$@" "$(location makevars.idl)"',
+    toolchains = ["@rules_wine//wine:tools_toolchain_type"],
 )
 
 wine_resource_compile(
