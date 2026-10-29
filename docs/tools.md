@@ -165,9 +165,9 @@ WIDL target ABI in `args` when needed. `run_binary` owns its string expansion
 and path-mapping behavior; the generation rules' typed-File guarantees do not
 apply to these raw arguments.
 
-`wrc -u` selects UTF-8 source encoding. On native Windows, non-ASCII command-line
-defines can still be converted by the executable's argv code page. Keep
-non-ASCII resource text in declared UTF-8 source files or headers.
+`wrc -u` selects UTF-8 source encoding. Non-ASCII `-D` values are unsupported
+on native Windows; keep non-ASCII resource text in declared UTF-8 source files
+or headers.
 
 ## Custom distributions and low-level actions
 
