@@ -1,8 +1,8 @@
 load("@bazel_lib//lib:run_binary.bzl", "run_binary")
 load("@rules_wine//wine:tools_toolchain.bzl", "wine_tools_executable_toolchain")
-load("@rules_wine//wine:wine_idl_compile.bzl", "wine_idl_compile")
-load("@rules_wine//wine:wine_message_compile.bzl", "wine_message_compile")
-load("@rules_wine//wine:wine_resource_compile.bzl", "wine_resource_compile")
+load("@rules_wine//wine:wine_idl_files.bzl", "wine_idl_files")
+load("@rules_wine//wine:wine_message_file.bzl", "wine_message_file")
+load("@rules_wine//wine:wine_resource_file.bzl", "wine_resource_file")
 load("fixture.bzl", "generated_inputs")
 
 package(default_visibility = ["//visibility:public"])
@@ -110,33 +110,33 @@ platform(
 
 generated_inputs(name = "generated")
 
-wine_message_compile(
+wine_message_file(
     name = "messages",
     src = "messages.mc",
     out = "messages.rc",
 )
 
-wine_message_compile(
+wine_message_file(
     name = "message_res",
     src = "messages.mc",
     out = "messages.res",
     output_format = "res",
 )
 
-wine_message_compile(
+wine_message_file(
     name = "custom_messages",
     src = "messages.mc",
     out = "custom_messages.rc",
     header = "renamed_messages.h",
 )
 
-wine_resource_compile(
+wine_resource_file(
     name = "inline_messages",
     src = "messages.rc",
     out = "inline_messages.res",
 )
 
-wine_message_compile(
+wine_message_file(
     name = "unicode_messages",
     src = "messages_utf16.mc",
     out = "unicode_messages.res",
@@ -144,7 +144,7 @@ wine_message_compile(
     unicode = True,
 )
 
-wine_resource_compile(
+wine_resource_file(
     name = "resources",
     src = "resources.rc",
     out = "nested/resources.res",
@@ -157,14 +157,14 @@ wine_resource_compile(
     ],
 )
 
-wine_idl_compile(
+wine_idl_files(
     name = "example",
     src = "generated/sub/example.idl",
     header = "example.h",
     proxy = "example_p.c",
 )
 
-wine_idl_compile(
+wine_idl_files(
     name = "interfaces",
     src = "interfaces.idl",
     header = "nested/interfaces.h",
@@ -181,7 +181,7 @@ wine_idl_compile(
     typelib = "interfaces.tlb",
 )
 
-wine_idl_compile(
+wine_idl_files(
     name = "rpc",
     src = "rpc.idl",
     client = "rpc_c.c",
@@ -298,7 +298,7 @@ genrule(
     toolchains = ["@rules_wine//wine:tools_toolchain_type"],
 )
 
-wine_resource_compile(
+wine_resource_file(
     name = "missing_asset",
     src = "resources.rc",
     out = "missing_asset.res",
@@ -308,7 +308,7 @@ wine_resource_compile(
     tags = ["manual"],
 )
 
-wine_idl_compile(
+wine_idl_files(
     name = "missing_import",
     src = "interfaces.idl",
     header = "missing_import.h",
@@ -317,14 +317,14 @@ wine_idl_compile(
     tags = ["manual"],
 )
 
-wine_message_compile(
+wine_message_file(
     name = "bad_message",
     src = "bad.mc",
     out = "bad.rc",
     tags = ["manual"],
 )
 
-wine_idl_compile(
+wine_idl_files(
     name = "qualified_import",
     src = "qualified_import.idl",
     header = "qualified_import.h",
@@ -333,7 +333,7 @@ wine_idl_compile(
     tags = ["manual"],
 )
 
-wine_resource_compile(
+wine_resource_file(
     name = "absolute_include",
     src = "resources.rc",
     out = "absolute.res",
@@ -341,7 +341,7 @@ wine_resource_compile(
     tags = ["manual"],
 )
 
-wine_resource_compile(
+wine_resource_file(
     name = "absolute_windows_include",
     src = "resources.rc",
     out = "absolute_windows.res",

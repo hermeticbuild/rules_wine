@@ -14,7 +14,7 @@ def _impl(ctx):
     elif ctx.target_platform_has_constraint(ctx.attr._aarch64[platform_common.ConstraintValueInfo]):
         cpu = "aarch64"
     else:
-        fail("wine_idl_compile supports target CPUs x86_64 and aarch64")
+        fail("wine_idl_files supports target CPUs x86_64 and aarch64")
     outputs = []
     inputs = [ctx.file.src] + ctx.files.imports
     for kind, flag in _KINDS.items():
@@ -62,7 +62,7 @@ def _impl(ctx):
         fail("select at least one IDL output: " + ", ".join(_KINDS))
     return [DefaultInfo(files = depset(outputs))]
 
-wine_idl_compile = rule(
+wine_idl_files = rule(
     implementation = _impl,
     doc = """Generate selected headers, type libraries or C source files from IDL.
 

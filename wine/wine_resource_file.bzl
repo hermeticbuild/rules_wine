@@ -45,7 +45,7 @@ def _impl(ctx):
     )
     return [DefaultInfo(files = depset([ctx.outputs.out]))]
 
-wine_resource_compile = rule(
+wine_resource_file = rule(
     implementation = _impl,
     doc = """Compile UTF-8 RC source to a binary RES file without a host SDK.
 

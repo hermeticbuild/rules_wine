@@ -7,9 +7,9 @@ filegroup(
         "//wine:toolchain.docs-as-proto",
         "//wine:tools_toolchain.docs-as-proto",
         "//wine:windows_binary.docs-as-proto",
-        "//wine:wine_idl_compile.docs-as-proto",
-        "//wine:wine_message_compile.docs-as-proto",
-        "//wine:wine_resource_compile.docs-as-proto",
+        "//wine:wine_idl_files.docs-as-proto",
+        "//wine:wine_message_file.docs-as-proto",
+        "//wine:wine_resource_file.docs-as-proto",
         "//wine/extension:wine.docs-as-proto",
     ],
 )

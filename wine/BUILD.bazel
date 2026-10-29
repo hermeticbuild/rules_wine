@@ -30,9 +30,9 @@ exports_files([
     "actions.bzl",
     "toolchain.bzl",
     "tools_toolchain.bzl",
-    "wine_idl_compile.bzl",
-    "wine_message_compile.bzl",
-    "wine_resource_compile.bzl",
+    "wine_idl_files.bzl",
+    "wine_message_file.bzl",
+    "wine_resource_file.bzl",
     "windows_binary.bzl",
 ])
 
@@ -64,16 +64,16 @@ bzl_library(
 )
 
 bzl_library(
-    name = "wine_idl_compile",
-    srcs = ["wine_idl_compile.bzl"],
+    name = "wine_idl_files",
+    srcs = ["wine_idl_files.bzl"],
 )
 
 bzl_library(
-    name = "wine_message_compile",
-    srcs = ["wine_message_compile.bzl"],
+    name = "wine_message_file",
+    srcs = ["wine_message_file.bzl"],
 )
 
 bzl_library(
-    name = "wine_resource_compile",
-    srcs = ["wine_resource_compile.bzl"],
+    name = "wine_resource_file",
+    srcs = ["wine_resource_file.bzl"],
 )

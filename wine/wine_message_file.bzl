@@ -36,7 +36,7 @@ def _impl(ctx):
     )
     return [DefaultInfo(files = depset(outputs))]
 
-wine_message_compile = rule(
+wine_message_file = rule(
     implementation = _impl,
     doc = """Compile a message table to RC plus header, or directly to RES.
 

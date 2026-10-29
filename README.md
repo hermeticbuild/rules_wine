@@ -64,13 +64,13 @@ register_toolchains("@wine_tools_toolchains//:all")
 ```
 
 ```starlark
-load("@rules_wine//wine:wine_message_compile.bzl", "wine_message_compile")
-load("@rules_wine//wine:wine_resource_compile.bzl", "wine_resource_compile")
-load("@rules_wine//wine:wine_idl_compile.bzl", "wine_idl_compile")
+load("@rules_wine//wine:wine_message_file.bzl", "wine_message_file")
+load("@rules_wine//wine:wine_resource_file.bzl", "wine_resource_file")
+load("@rules_wine//wine:wine_idl_files.bzl", "wine_idl_files")
 
-wine_message_compile(name = "messages", src = "messages.mc", out = "messages.rc")
-wine_resource_compile(name = "message_resources", src = "messages.rc", out = "messages.res")
-wine_idl_compile(name = "interfaces", src = "interfaces.idl", header = "interfaces.h", typelib = "interfaces.tlb")
+wine_message_file(name = "messages", src = "messages.mc", out = "messages.rc")
+wine_resource_file(name = "message_resources", src = "messages.rc", out = "messages.res")
+wine_idl_files(name = "interfaces", src = "interfaces.idl", header = "interfaces.h", typelib = "interfaces.tlb")
 ```
 
 The message rule also emits `messages.h`; outputs are ordinary file labels.
